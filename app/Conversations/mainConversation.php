@@ -107,8 +107,12 @@ class mainConversation extends conversation
             $question->addButtons([Button::create($category)->value($key),]);
         }
         $this->ask($question, function (Answer $answer) {
-            $this->response['parentCatId'] = $answer->getText();
-            $this->childCategoryChoose($answer->getText());
+            if ($answer == '')
+            {$this->parentCategoryChoose ();}
+            else {
+                $this->response['parentCatId'] = $answer->getText();
+                $this->childCategoryChoose($answer->getText());
+            }
         });
     }
 
@@ -122,9 +126,13 @@ class mainConversation extends conversation
         {
             $question->addButtons([Button::create($category)->value($key),]);
         }
-        $this->ask($question, function (Answer $answer) {
-            $this->response['childCatId'] = $answer->getText();
-            $this->askOfferName();
+        $this->ask($question, function (Answer $answer) use ($ParentCatId) {
+            if ($answer == '')
+            {$this->childCategoryChoose($ParentCatId);}
+            else {
+                $this->response['childCatId'] = $answer->getText();
+                $this->askOfferName();
+            }
         });
     }
 
@@ -137,6 +145,7 @@ class mainConversation extends conversation
                 $this->response['offerName'] = $answer->getText();
                 $this->askDescription();
             }
+            else {$this->askOfferName();}
         });
     }
 
@@ -149,6 +158,7 @@ class mainConversation extends conversation
                 $this->response['description'] = $answer->getText();
                 $this->askPrice ();
             }
+            else {$this->askDescription();}
         });
     }
 
@@ -161,6 +171,7 @@ class mainConversation extends conversation
                 $this->response['price'] = $answer->getText();
                 $this->askPhoto ();
             }
+            else {$this->askPrice();}
         });
     }
 
@@ -224,82 +235,143 @@ class mainConversation extends conversation
     {
         $db=new TrutorgDB();
         $userInformation = $this->userInformation;
-        $noUserInformation = $db->getUserAbsentInformation($userInformation['user_id']);
-        if (!empty($noUserInformation))
+            if (!empty($userInformation)){$noUserInformation = $db->getUserAbsentInformation($userInformation['user_id']);}
+            else {$noUserInformation[1]='контактов, адреса';};
+        file_put_contents('log2.txt', var_export($noUserInformation,true).PHP_EOL ,LOCK_EX); //для дебага
+        if (!empty($noUserInformation) && key_exists(1,$noUserInformation))
         {
             $this->say('для быстрой подачи объявлений не хватает следующих данных: ' . implode(",", $noUserInformation));
         }
 
-        //Случай 1: если это работа с сервера и не все данные есть, предлагаем отправить инфу автоматом - НУЖНО НАСТРОИТЬ ПРЕДЛОЖЕНИЕ АВТОМАТОМ НЕДОСТАЮЩЕЙ ИНФЫ, в случае отказа атоматом отправку в нужное заполнение вручную
-        if ((self::$localServer == false) && (!empty($noUserInformation)))
-        {
-            $bot = $this->bot;
-            $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм', function (Answer $answer) use ($bot) {
-                $contactInformation = $answer->getMessage()->getPayload()->toArray();
-                if (empty($contactInformation['contact']['phone_number'])) {
-                    $this->say('Ок! Вы сможете ввести необходимые данные вручную');
-                } else {
-                    $bot->reply('номер телефона получен!');
-                    $this->response = array_merge($this->response, $contactInformation['contact']);
-                }
-                //file_put_contents('logPHONE.txt', var_export($contactInformation['contact'],true).PHP_EOL ,LOCK_EX); //для дебага
-
-                $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
-                    $location = $answer->getMessage()->getPayload()->toArray();
-                    //file_put_contents('logLocation.txt', var_export($answer->getMessage()->getPayload(),true).PHP_EOL ,LOCK_EX); //для дебага
-                    if (empty($location['location'])) {
-                        $this->say('Ок! Вы сможете ввести необходимые данные вручную');
-                        $this->myDebugFunction();
-                    } else {
-                        $bot->reply('геолокация получена!');
-                        $location = $answer->getMessage()->getPayload()->toArray();
-                        $this->response = array_merge($this->response, $location['location']);
-                        $this->myDebugFunction();
+        //Случай 1: если это работа с сервера и не все данные есть
+        if ((self::$localServer == false) && (!empty($noUserInformation))) {
+            // если не хватает имени или номера
+            if (key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation))
+                    {
+                        $bot = $this->bot;
+                        $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм', function (Answer $answer) use ($bot) {
+                            $contactInformation = $answer->getMessage()->getPayload()->toArray();
+                            if (empty($contactInformation['contact']['phone_number'])) {
+                                $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                                $this->askName();
+                            } else {
+                                $bot->reply('номер телефона получен!');
+                                $this->response = array_merge($this->response, $contactInformation['contact']);
+                                $this->askName();
+                            }
+                    },
+                            [
+                                'reply_markup' => json_encode
+                                ([
+                                    'keyboard' =>
+                                        [[[
+                                            'text' => 'Указать номер телефона',
+                                            'request_contact' => true,
+                                        ]]],
+                                    'one_time_keyboard' => true,
+                                    'resize_keyboard' => true
+                                ])
+                            ]);
                     }
+
+            // если не хватает адреса
+            else if (key_exists('address', $noUserInformation))
+                    {
+                        $bot = $this->bot;
+                        $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
+                            $contactInformation = $answer->getMessage()->getPayload()->toArray();
+                            if (empty($location['location'])) {
+                                $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                                $this->askName();
+                            } else {
+                                $bot->reply('геолокация получена!');
+                                $location = $answer->getMessage()->getPayload()->toArray();
+                                $this->response = array_merge($this->response, $location['location']);
+                                $this->askName();
+                            }
+                        },
+                            [
+                                'reply_markup' => json_encode
+                                ([
+                                    'keyboard' =>
+                                        [[[
+                                            'text' => 'Отправить геолокацию',
+                                            'request_location' => true,
+                                        ]]],
+                                    'one_time_keyboard' => true,
+                                    'resize_keyboard' => true
+                                ])
+                            ]);
+                    }
+
+            //если не хватает и номера и геолокации
+            if (key_exists(1, $noUserInformation) or ((key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation)) && (key_exists('address', $noUserInformation)))) {  // сюда надо раздельно для контакта и дальше для адреса}
+                $bot = $this->bot;
+                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм', function (Answer $answer) use ($bot) {
+                    $contactInformation = $answer->getMessage()->getPayload()->toArray();
+                    if (empty($contactInformation['contact']['phone_number'])) {
+                        $this->say('Ок! Вы сможете ввести необходимые данные вручную');
+                    } else {
+                        $bot->reply('номер телефона получен!');
+                        $this->response = array_merge($this->response, $contactInformation['contact']);
+                    }
+                    //file_put_contents('logPHONE.txt', var_export($contactInformation['contact'],true).PHP_EOL ,LOCK_EX); //для дебага
+
+                    $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
+                        $location = $answer->getMessage()->getPayload()->toArray();
+                        //file_put_contents('logLocation.txt', var_export($answer->getMessage()->getPayload(),true).PHP_EOL ,LOCK_EX); //для дебага
+                        if (empty($location['location'])) {
+                            $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                            $this->askName();
+                        } else {
+                            $bot->reply('геолокация получена!');
+                            $location = $answer->getMessage()->getPayload()->toArray();
+                            $this->response = array_merge($this->response, $location['location']);
+                            $this->askName();
+                        }
+                    },
+                        [
+                            'reply_markup' => json_encode
+                            ([
+                                'keyboard' =>
+                                    [[[
+                                        'text' => 'Отправить геолокацию',
+                                        'request_location' => true,
+                                    ]]],
+                                'one_time_keyboard' => true,
+                                'resize_keyboard' => true
+                            ])
+                        ]);
+
                 },
                     [
                         'reply_markup' => json_encode
                         ([
                             'keyboard' =>
                                 [[[
-                                    'text' => 'Отправить геолокацию',
-                                    'request_location' => true,
+                                    'text' => 'Указать номер телефона',
+                                    'request_contact' => true,
                                 ]]],
                             'one_time_keyboard' => true,
                             'resize_keyboard' => true
                         ])
                     ]);
+            }
+        }
 
-            },
-                [
-                    'reply_markup' => json_encode
-                    ([
-                        'keyboard' =>
-                            [[[
-                                'text' => 'Указать номер телефона',
-                                'request_contact' => true,
-                            ]]],
-                        'one_time_keyboard' => true,
-                        'resize_keyboard' => true
-                    ])
-                ]);
-        }
         //Случай 2: если это тест с локалки и не все данные есть идем к ручному заполнению
-        else if ((self::$localServer == true) && (!empty($noUserInformation)))
-        {
+        else if ((self::$localServer == true) && (!empty($noUserInformation))) {
             $this->askName();
-        }
-        //Случай 3: если все даные есть
-        else if (empty($noUserInformation))
-        {
-            $this->sendInformationToDB();
+        } //Случай 3: если все даные есть
+        else if (empty($noUserInformation)) {
+            $this->checkInformation();
         }
     }
 
 
     private function askName()
     {
-        if (array_key_exists('first_name',$this->userInformation))
+        if ((array_key_exists('first_name',$this->userInformation)) or (array_key_exists('first_name',$this->response)))
             {
                 $this->askPhone();
             }
@@ -316,7 +388,7 @@ class mainConversation extends conversation
 
     private function askPhone()
     {
-        if (array_key_exists('phone_number',$this->userInformation))
+        if ((array_key_exists('phone_number',$this->userInformation)) or (array_key_exists('phone_number',$this->response)))
         {
             $this->askLocation();
         }
@@ -334,40 +406,71 @@ class mainConversation extends conversation
 
     private function askLocation()
     {
-        if (array_key_exists('latitude',$this->userInformation))
+        if ((array_key_exists('latitude',$this->userInformation)) or (array_key_exists('latitude',$this->response)))
         {
-            $this->say('проскочил askLocation');
-            $this->sendInformationToDB();
+            $this->checkInformation();
         }
         else
         {
-            $question = Question::create("Укажите адрес");
+            $question = Question::create("Укажите адрес (пока тест)");
             $this->ask($question, function (Answer $answer) {
                 if ($answer->getText() != '') {
                     $this->response['address'] = $answer->getText();
-                    $this->sendInformationToDB();
+                    $this->checkInformation();
                 }
             });
         }
     }
 
-    private function sendInformationToDB()
+    private function checkInformation()
     {
         $db = new TrutorgDB();
         $this->response['newItem_Id'] = $db->getNewItemId();
-        $item_id = $this->response['newItem_Id'];
         $data = array_merge($this->response, $this->userInformation);
+
+        $this->say('проверьте пожалуйста информацию: 
+                            Название:'.$data['offerName'].'
+                            Цена:'.$data['price'].'
+                            Имя:'.$data['first_name'].'
+                            Телефон:'.$data['phone_number']
+
+                   );
+        {$question = Question::create('Все корректно?');}
+        $question->addButtons([
+            Button::create('Да, разместить объявление')->value(1),
+            Button::create('Нет, давай заново')->value(2),
+        ]);
+
+        $this->ask($question, function (Answer $answer) use ($data) {
+            if ($answer->getValue() == 1) {
+                $this->sendInformationToDB($data);
+            } else if ($answer->getValue() == 2) {
+                $this->response = [];
+                $this->imagesUrls = [];
+                $this->userInformation = [];
+                $this->Preparing();
+            }
+        });
+
+    }
+
+    private function sendInformationToDB($data)
+    {
+        $db = new TrutorgDB();
         file_put_contents('logDATAbeforePush.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
         $db->PutToTheTable($data);
-        $this->uploadPhotos($item_id);
+        $this->uploadPhotos($data['newItem_Id']);
+        file_put_contents('log.txt', var_export($data['newItem_Id'],true).PHP_EOL ,LOCK_EX); //для дебага
     }
 
     private function uploadPhotos($newItemId)
     {
         $db = new TrutorgDB();
+        //file_put_contents('logImageInfo.txt', var_export('imagesUrls= '.$this->imagesUrls,true).PHP_EOL ,LOCK_EX); //для дебага
         if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
         $path4image = $this->newDir.$imageFolder.$newItemId;
         $path4imageToDB = self::$path4imageDB.$newItemId.'/';
+        file_put_contents('logImagePathes.txt', var_export('path4image= '.$path4image.', path4imageToDB= '.$path4imageToDB,true).PHP_EOL ,LOCK_EX); //для дебага
         mkdir($path4image, 0777);
         $i=0;
         foreach ($this->imagesUrls as $image)
@@ -384,12 +487,12 @@ class mainConversation extends conversation
             $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
             ++$i;
         }
-        $this->exit();
+        $this->exit($newItemId);
     }
 
-    private function exit()
+    private function exit($newItemId)
     {
-        $message = OutgoingMessage::create('объявление добавлено!');
+        $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id='.$newItemId);
         $this->bot->reply($message);
         return true;
     }
