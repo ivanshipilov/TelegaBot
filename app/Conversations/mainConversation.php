@@ -44,7 +44,8 @@ class mainConversation extends conversation
         }
 
         $db=new TrutorgDB();
-        $user_id=$this->bot->getUser()->getId();
+       // $user_id=$this->bot->getUser()->getId();
+        $user_id=3;
         $userInformation = $db->getUserInformation($user_id);
         if ($userInformation == 0)
         {
@@ -70,22 +71,44 @@ class mainConversation extends conversation
     private function hello () {
         file_put_contents('log0.txt', var_export($this->userInformation,true).PHP_EOL ,LOCK_EX); //для дебага
         if (array_key_exists('new_user',$this->userInformation))
-        {$question = Question::create("Привет! хотите разместить объявление, или что-то купить?");}
+        {
+            $question = Question::create("Привет! хотите разместить объявление, или что-то купить?");
+            $question->addButtons([
+                Button::create('разместить объявление')->value(1),
+                Button::create('посмотреть что продают соседи')->value(2),
+            ]);
+        }
         else
-        {$question = Question::create($this->userInformation['first_name'].', хотите разместить новое объявление, или что-то купить?');}
-        $question->addButtons([
-            Button::create('разместить объявление')->value(1),
-            Button::create('посмотреть что продают соседи')->value(2),
-        ]);
+        {
+            $question = Question::create($this->userInformation['first_name'] . ', какие планы?');
+            $question->addButtons([
+                Button::create('разместить объявление')->value(1),
+                Button::create('посмотреть мои активные объявления')->value(3),
+                Button::create('посмотреть что продают соседи')->value(2),
+            ]);
+        }
 
         $this->ask($question, function (Answer $answer) {
             if ($answer->getValue() == 1) {
                 $this->parentCategoryChoose();
             } else if ($answer->getValue() == 2) {
                 $this->say('trutorg.com');
+            } else if ($answer->getValue() == 3) {
+                $this->watchOffers();
             }
         });
+    }
 
+    private function watchOffers()
+    {
+        $this->say('Ваши активные объявления:');
+        $db = new TrutorgDB();
+        $adds = $db->getUserOffers($this->userInformation['user_id']);
+        file_put_contents('log3.txt', var_export($adds,true).PHP_EOL ,LOCK_EX); //для дебага
+        foreach ( $adds as $id => $title )
+        {
+            $this->say($title.', ссылка: https://trutorg.com/index.php?page=item&id='.$id);
+        }
     }
 
     private function parentCategoryChoose ()
@@ -508,6 +531,10 @@ class mainConversation extends conversation
     {
         $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id='.$newItemId);
         $this->bot->reply($message);
+        $this->response = [];
+        $this->imagesUrls = [];
+        $this->userInformation = [];
+        $this->Preparing();
         return true;
     }
 

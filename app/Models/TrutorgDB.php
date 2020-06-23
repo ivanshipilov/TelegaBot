@@ -58,6 +58,11 @@ class TrutorgDB extends Model
         return $childCategories;
     }
 
+    public function getUserOffers($user_id)
+    {
+         return $adv = DB::table(self::$tablePrefix.'_t_item_description')->where('telega_user_id', $user_id)->pluck('s_title', 'fk_i_item_id');
+    }
+
     public function getCategoryNameById($id)
     {
         $categories = DB::table(self::$tablePrefix.'_t_category_description')->get()->all();
@@ -252,6 +257,7 @@ class TrutorgDB extends Model
                 'fk_c_locale_code' => 'ru_RU',
                 's_title' => $data['offerName'],
                 's_description' => $data['description'],
+                'telega_user_id' => $data['user_id'],
             ]
         );
 
