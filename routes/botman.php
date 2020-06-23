@@ -1,6 +1,7 @@
 <?php
 use App\Http\Controllers\BotManController;
 use App\Conversations\mainConversation;
+use App\Conversations\DebugConversation;
 
 $botman = resolve('botman');
 
@@ -11,6 +12,7 @@ $botman->hears('Hi', function ($bot) {
 //$botman->hears('/start', function ( $bot ) { $bot->startConversation ( new mainConversation ); } );
 
 $botman->hears('/start', function ( $bot ) { $bot->startConversation ( new mainConversation ); } );
+$botman->hears('/debug', function ( $bot ) { $bot->startConversation ( new DebugConversation ); } );
 
 
 

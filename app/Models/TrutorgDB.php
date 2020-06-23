@@ -139,24 +139,36 @@ class TrutorgDB extends Model
 
     public function getUserInformation($user_id, $fullArray = false)
     {
-        $userInfo = array
-        (
-            'user_id' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_id'),
-            'first_name' => DB::table('messenger_users')->where('user_id', $user_id)->value('first_name'),
-            'last_name' => DB::table('messenger_users')->where('user_id', $user_id)->value('last_name'),
-            'phone_number' => DB::table('messenger_users')->where('user_id', $user_id)->value('phone_number'),
-            'latitude' => DB::table('messenger_users')->where('user_id', $user_id)->value('latitude'),
-            'longitude' => DB::table('messenger_users')->where('user_id', $user_id)->value('longitude'),
-            'user_country' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_country'),
-            'user_city' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_city'),
-            'user_district' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_district'),
-            'user_street' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_street'),
-            'user_house' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_house'),
-            'user_index' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_index'),
-        );
-        
-       if  ($fullArray) {return $userInfo;}
-       else {return array_filter($userInfo);}
+        if (DB::table('messenger_users')->where('user_id', '=', $user_id)->exists())
+        {
+            $userInfo = array
+            (
+                'user_id' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_id'),
+                'first_name' => DB::table('messenger_users')->where('user_id', $user_id)->value('first_name'),
+                'last_name' => DB::table('messenger_users')->where('user_id', $user_id)->value('last_name'),
+                'phone_number' => DB::table('messenger_users')->where('user_id', $user_id)->value('phone_number'),
+                'latitude' => DB::table('messenger_users')->where('user_id', $user_id)->value('latitude'),
+                'longitude' => DB::table('messenger_users')->where('user_id', $user_id)->value('longitude'),
+                'user_country' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_country'),
+                'user_city' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_city'),
+                'user_district' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_district'),
+                'user_street' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_street'),
+                'user_house' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_house'),
+                'user_index' => DB::table('messenger_users')->where('user_id', $user_id)->value('user_index'),
+            );
+
+            if ($fullArray)
+            {
+                return $userInfo;
+            } else
+            {
+                return array_filter($userInfo);
+            }
+        }
+        else
+        {
+            return 0;
+        }
     }
 
     public function getUserAbsentInformation($user_id)
@@ -278,9 +290,14 @@ class TrutorgDB extends Model
 
     }
 
-    public function putUserInformation($data)
+    public function putUserInformation($data, $update = false)
     {
-        DB::table('messenger_users')->insert(
+        if ($update) {$command = 'update';}
+        else {$command = 'insert'; }
+        //$data = $this->getUserInformation($user_id,true);
+        file_put_contents('logdata.txt', var_export($data['first_name'],true).PHP_EOL ,LOCK_EX);
+
+        DB::table('messenger_users')->$command(
             [
                 'user_id' => $data['user_id'],
                 'first_name' => $data['first_name'],
@@ -288,10 +305,19 @@ class TrutorgDB extends Model
                 'phone_number' => $data['phone_number'],
                 'latitude' => $data['latitude'],
                 'longitude' => $data['longitude'],
-                'id_chat' => 0,
+                'id_chat' => 1,
+                'user_country' => $data['user_country'],
+                'user_city' => $data['user_city'],
+                'user_district' => $data['user_district'],
+                'user_street' => $data['user_street'],
+                'user_house' => $data['user_house'],
+                'user_index' => $data['user_index'],
+
             ]
         );
     }
+
+
     Public function PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB)
     {
         DB::table(self::$tablePrefix.'_t_item_resource')->insert(
