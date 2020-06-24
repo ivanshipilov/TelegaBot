@@ -60,7 +60,19 @@ class TrutorgDB extends Model
 
     public function getUserOffers($user_id)
     {
-         return $adv = DB::table(self::$tablePrefix.'_t_item_description')->where('telega_user_id', $user_id)->pluck('s_title', 'fk_i_item_id');
+
+        $activeAdd = DB::table(self::$tablePrefix.'_t_item')
+            ->where ('b_active', '=', '1')
+            ->pluck('pk_i_id');
+        $adds = DB::table(self::$tablePrefix.'_t_item_description')
+            ->where('telega_user_id', $user_id)
+            ->pluck('s_title', 'fk_i_item_id');
+        foreach ( $adds as $id => $title )
+        {
+            if (!$activeAdd->contains($id)) {$adds->forget($id);}
+        }
+
+        return $adds;
     }
 
     public function getCategoryNameById($id)

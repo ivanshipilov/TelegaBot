@@ -51,8 +51,9 @@ class mainConversation extends conversation
         }
 
         $db=new TrutorgDB();
-        //$user_id=$this->bot->getUser()->getId();
-        $user_id=3;
+        if (self::$localServer) {$user_id=3;}
+        else {$user_id=$this->bot->getUser()->getId();}
+
         $userInformation = $db->getUserInformation($user_id);
         if ($userInformation == 0)
         {
