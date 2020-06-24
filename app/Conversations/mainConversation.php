@@ -119,7 +119,7 @@ class mainConversation extends conversation
             //$this->say($title.', ссылка: https://trutorg.com/index.php?page=item&id='.$id);
             $question->addButtons([Button::create($title)->value($id),]);
         }
-        $this->ask($question, function (Answer $answer) {
+        $this->ask($question, function (Answer $answer) use ($db){
             if ($answer == '') {
                 $this->hello();
             } else {
@@ -130,9 +130,9 @@ class mainConversation extends conversation
                     Button::create('перейти к нему на сайте')->value(2),
                     //Button::create('посмотреть что продают соседи')->value(3),
                 ]);
-                $this->ask($question1, function (Answer $answer) use ($addId){
+                $this->ask($question1, function (Answer $answer) use ($addId, $db){
                     if ($answer->getValue() == 1) {
-                        //тут функцию для удаления
+                        $db->deactivateAdd($addId); //деактивировать объявление
                     } else if ($answer->getValue() == 2) {
                         $this->say('ссылка: https://trutorg.com/index.php?page=item&id='.$addId);
                     }

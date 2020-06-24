@@ -296,6 +296,13 @@ class TrutorgDB extends Model
 
     }
 
+    public function deactivateAdd($addId)
+    {
+        DB::table(self::$tablePrefix.'_t_item')
+            ->where('pk_i_id', $addId)
+            ->update(['b_active' => 0]);
+    }
+
     public function putUserInformation($data, $update = false)
     {
         if ($update) {$command = 'update';}
