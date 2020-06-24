@@ -606,14 +606,21 @@ class BotMan
 
     public function deleteMessage($message)
     {
-        $payload = $message->getMessage()->getPayload();
-        $apiParameters =
-            [
-                'chat_id' => $payload['chat']['id'],
-                'message_id' => $payload['message_id']
-            ];
+        if ($_SERVER['SERVER_ADDR'] == '127.0.0.1')
+        {
+            return 0;
+        }
+        else
+        {
+            $payload = $message->getMessage()->getPayload();
+            $apiParameters =
+                [
+                    'chat_id' => $payload['chat']['id'],
+                    'message_id' => $payload['message_id']
+                ];
 
-        $this->sendRequest('deleteMessage', $apiParameters);
+            $this->sendRequest('deleteMessage', $apiParameters);
+        }
     }
 
     public function sendRequest($endpoint, $additionalParameters = [])

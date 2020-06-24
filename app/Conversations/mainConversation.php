@@ -21,7 +21,7 @@ use BotMan\Drivers\Telegram\Extensions\KeyboardButton;
 
 class mainConversation extends conversation
 {
-    static $localServer = true; //перед запуском выбрать..надо будет автоматизировать
+    static $localServer = false; //перед запуском выбрать..надо будет автоматизировать
     static $folder4imageLocalServer = '\images\\';
     static $folder4imagelServer = '/images/';
     static $path4imageDB = 'oc-content/uploads/TelegaBot/images/';
@@ -31,6 +31,13 @@ class mainConversation extends conversation
     public $imagesUrls = [];
     public $userInformation = [];
 
+    function __construct()
+    {
+        if ($_SERVER['SERVER_ADDR'] == '127.0.0.1')
+        {
+            self::$localServer = true;
+        }
+    }
 
     public function Preparing()
     {
@@ -44,8 +51,8 @@ class mainConversation extends conversation
         }
 
         $db=new TrutorgDB();
-        $user_id=$this->bot->getUser()->getId();
-        //$user_id=3;
+        //$user_id=$this->bot->getUser()->getId();
+        $user_id=3;
         $userInformation = $db->getUserInformation($user_id);
         if ($userInformation == 0)
         {
@@ -69,6 +76,7 @@ class mainConversation extends conversation
 
 
     private function hello () {
+        file_put_contents('LOG_serv.txt', var_export(self::$localServer,true).PHP_EOL ,LOCK_EX); //для дебага
         if (array_key_exists('new_user',$this->userInformation))
         {
             $question = Question::create("Привет! хотите разместить объявление, или что-то купить?");
