@@ -44,8 +44,8 @@ class mainConversation extends conversation
         }
 
         $db=new TrutorgDB();
-       // $user_id=$this->bot->getUser()->getId();
-        $user_id=3;
+        $user_id=$this->bot->getUser()->getId();
+        //$user_id=3;
         $userInformation = $db->getUserInformation($user_id);
         if ($userInformation == 0)
         {
@@ -69,7 +69,6 @@ class mainConversation extends conversation
 
 
     private function hello () {
-        file_put_contents('log0.txt', var_export($this->userInformation,true).PHP_EOL ,LOCK_EX); //для дебага
         if (array_key_exists('new_user',$this->userInformation))
         {
             $question = Question::create("Привет! хотите разместить объявление, или что-то купить?");
@@ -94,21 +93,46 @@ class mainConversation extends conversation
             } else if ($answer->getValue() == 2) {
                 $this->say('trutorg.com');
             } else if ($answer->getValue() == 3) {
-                $this->watchOffers();
+                $this->watchActiveAdds();
             }
+            $this->bot->deleteMessage($answer);
         });
     }
 
-    private function watchOffers()
+    private function watchActiveAdds()
     {
-        $this->say('Ваши активные объявления:');
+        //$this->say('Ваши активные объявления:');
         $db = new TrutorgDB();
+        $bot = $this->bot;
         $adds = $db->getUserOffers($this->userInformation['user_id']);
-        file_put_contents('log3.txt', var_export($adds,true).PHP_EOL ,LOCK_EX); //для дебага
+        $question = Question::create("Ваши активные объявления:");
         foreach ( $adds as $id => $title )
         {
-            $this->say($title.', ссылка: https://trutorg.com/index.php?page=item&id='.$id);
+            //$this->say($title.', ссылка: https://trutorg.com/index.php?page=item&id='.$id);
+            $question->addButtons([Button::create($title)->value($id),]);
         }
+        $this->ask($question, function (Answer $answer) {
+            if ($answer == '') {
+                $this->hello();
+            } else {
+                $addId = $answer->getValue();
+                $question1 = Question::create('Как поступим с этим объявлением?');
+                $question1->addButtons([
+                    Button::create('закрыть')->value(1),
+                    Button::create('перейти к нему на сайте')->value(2),
+                    //Button::create('посмотреть что продают соседи')->value(3),
+                ]);
+                $this->ask($question1, function (Answer $answer) use ($addId){
+                    if ($answer->getValue() == 1) {
+                        //тут функцию для удаления
+                    } else if ($answer->getValue() == 2) {
+                        $this->say('ссылка: https://trutorg.com/index.php?page=item&id='.$addId);
+                    }
+                    $this->bot->deleteMessage($answer);
+                });
+            }
+            $this->bot->deleteMessage($answer);
+        });
     }
 
     private function parentCategoryChoose ()
