@@ -17,6 +17,7 @@ use BotMan\BotMan\Messages\Outgoing\OutgoingMessage;
 use BotMan\BotMan\Messages\Outgoing\Question;
 use BotMan\Drivers\Telegram\Extensions\Keyboard;
 use BotMan\Drivers\Telegram\Extensions\KeyboardButton;
+use App\Models\TrutorgHelpers;
 
 
 class mainConversation extends conversation
@@ -97,6 +98,8 @@ class mainConversation extends conversation
 
         $this->ask($question, function (Answer $answer) {
             if ($answer->getValue() == 1) {
+                $this->bot->deleteMessage($answer);
+                $this->say('размещаем объявление..');
                 $this->parentCategoryChoose();
             } else if ($answer->getValue() == 2) {
                 $this->say('Все объявления здесь: trutorg.com');
@@ -121,7 +124,6 @@ class mainConversation extends conversation
         if ($adds->isNotEmpty())
         {
             $question = Question::create("Ваши активные объявления:");
-            file_put_contents('Log.txt', var_export($question,true).PHP_EOL ,LOCK_EX); //для дебага
             foreach ($adds as $id => $title) {
                 $question->addButtons([Button::create($title)->value($id),]);
             }
@@ -173,19 +175,31 @@ class mainConversation extends conversation
         $db = new TrutorgDB();
         $parentCategories = $db->getParentCategoryTable();
         $question = Question::create("выберите категорию");
-
         foreach ($parentCategories as $key => $category )
         {
             $question->addButtons([Button::create($category)->value($key),]);
         }
-        $this->ask($question, function (Answer $answer) {
-            if ($answer == '')
-            {$this->parentCategoryChoose ();}
-            else {
+        $this->ask($question, function (Answer $answer) use ($parentCategories) {
+            if (key_exists($answer->getValue(),$parentCategories))
+            {
                 $this->response['parentCatId'] = $answer->getText();
+                $this->bot->deleteMessage($answer);
+                $this->say('выбрана категория: '.$parentCategories[$answer->getText()]);
                 $this->childCategoryChoose($answer->getText());
             }
-            $this->bot->deleteMessage($answer);
+            else if (mb_strtolower($answer->getText()) == 'назад')
+            {
+
+                $this->bot->deleteMessage($answer);
+                $this->exit(true);
+            }
+            else
+            {
+                $this->say('выберите категорию, нажав на одну из кнопок, если же вы передумали публиковать объявление напишите "назад"');
+                $this->bot->deletePreviousMessage($answer);
+                $this->bot->deleteMessage($answer);
+                $this->parentCategoryChoose ();
+            }
         });
     }
 
@@ -199,56 +213,140 @@ class mainConversation extends conversation
         {
             $question->addButtons([Button::create($category)->value($key),]);
         }
-        $this->ask($question, function (Answer $answer) use ($ParentCatId) {
-            if ($answer == '')
-            {$this->childCategoryChoose($ParentCatId);}
-            else {
+        $this->ask($question, function (Answer $answer) use ($ParentCatId,$childCategories ) {
+            if (key_exists($answer->getValue(),$childCategories))
+            {
                 $this->response['childCatId'] = $answer->getText();
+                $this->bot->deleteMessage($answer);
+                $this->say('выбрана подкатегория: '.$childCategories[$answer->getText()]);
                 $this->askOfferName();
             }
-            $this->bot->deleteMessage($answer);
+            else if (mb_strtolower($answer->getText()) == 'назад')
+            {
+                $this->bot->deleteMessage($answer);
+                $this->exit(true);
+            }
+            else
+            {
+                $this->say('выберите категорию, нажав на одну из кнопок, если же вы передумали публиковать объявление напишите "назад"');
+                $this->bot->deletePreviousMessage($answer);
+                $this->bot->deleteMessage($answer);
+                $this->childCategoryChoose();
+            }
         });
     }
 
     private function askOfferName()
     {
+        $hlp=new TrutorgHelpers();
         $question = Question::create("Введите название объявления");
-        $this->ask( $question, function ( Answer $answer )
+        $this->ask( $question, function ( Answer $answer) use ($hlp)
         {
-            if ($answer->getText() != '') {
-                $this->response['offerName'] = $answer->getText();
-                $this->askDescription();
+            if ($answer->getText() != '')
+            {
+                $offerName = $hlp->validateText($answer->getText(),100);
+                //file_put_contents('Log.txt', var_export($offerName === 0,true).PHP_EOL ,LOCK_EX); //для дебага
+                if ($offerName === 0)
+                {
+                    $this->say('название должно быть длиной менее 100 символов и без использования спец-символов');
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->askOfferName();
+                }
+                else
+                {
+                    $this->response['offerName'] = $offerName;
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->say('название объявления: '.$offerName);
+                    $this->askDescription();
+                }
             }
-            else {$this->askOfferName();}
-            $this->bot->deleteMessage($answer);
+            else if (mb_strtolower($answer->getText()) == 'назад')
+            {
+                $this->bot->deleteMessage($answer);
+                $this->exit(true);
+            }
+            else
+            {
+                $this->bot->deleteMessage($answer);
+                $this->askOfferName();
+            }
         });
     }
 
     private function askDescription()
     {
+        $hlp=new TrutorgHelpers();
         $question = Question::create("Введите краткое описание объявления");
-        $this->ask( $question, function ( Answer $answer )
+        $this->ask( $question, function ( Answer $answer ) use ($hlp)
         {
-            if ($answer->getText() != '') {
-                $this->response['description'] = $answer->getText();
-                $this->askPrice ();
+            if ($answer->getText() != '')
+            {
+                $description = $hlp->validateText($answer->getText(),255);
+                if ($description === 0)
+                {
+                    $this->say('Описание должно быть длиной менее 255 символов и без использования спец-символов');
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->askDescription();
+                }
+                else if (mb_strtolower($answer->getText()) == 'назад')
+                {
+                    $this->bot->deleteMessage($answer);
+                    $this->exit(true);
+                }
+                else
+                {
+                    $this->response['description'] = $answer->getText();
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->askPrice ();
+                }
             }
-            else {$this->askDescription();}
-            $this->bot->deleteMessage($answer);
+            else
+            {
+                $this->bot->deleteMessage($answer);
+                $this->askDescription();
+            }
         });
     }
 
     private function askPrice()
     {
-        $question = Question::create("Введите цену");
-        $this->ask( $question, function ( Answer $answer )
+        $hlp=new TrutorgHelpers();
+        $question = Question::create("Введите цену (в рублях)");
+        $this->ask( $question, function ( Answer $answer ) use($hlp)
         {
-            if ($answer->getText() != '') {
-                $this->response['price'] = $answer->getText();
-                $this->askPhoto ();
+            if ($answer->getText() != '')
+            {
+                $price = $hlp->validateDigits($answer->getText(),16);
+                if ($price === 0)
+                {
+                    $this->say('Введите пожалуйста целое число без точек, запятых..и адекватную сумму..ну хотя бы до 1млрд =)');
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->askPrice();
+                }
+                else if (mb_strtolower($answer->getText()) == 'назад')
+                {
+                    $this->bot->deleteMessage($answer);
+                    $this->exit(true);
+                }
+                else
+                {
+                    $this->response['price'] = $price;
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->say('стоимость: '.$price.' рублей');
+                    $this->askPhoto();
+                }
             }
-            else {$this->askPrice();}
-            $this->bot->deleteMessage($answer);
+            else
+            {
+                $this->bot->deleteMessage($answer);
+                $this->askPrice();
+            }
         });
     }
 
@@ -602,10 +700,13 @@ class mainConversation extends conversation
         $this->exit($newItemId);
     }
 
-    private function exit($newItemId)
+    private function exit($unthink = false, $newItemId = 0)
     {
-        $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id='.$newItemId);
-        $this->bot->reply($message);
+        if (!$unthink)
+        {
+            $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id=' . $newItemId);
+            $this->bot->reply($message);
+        }
         $this->response = [];
         $this->imagesUrls = [];
         $this->userInformation = [];
