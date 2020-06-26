@@ -253,6 +253,11 @@ class mainConversation extends conversation
                     $this->bot->deleteMessage($answer);
                     $this->askOfferName();
                 }
+                else if (mb_strtolower($answer->getText()) == 'назад')
+                {
+                    $this->bot->deleteMessage($answer);
+                    $this->exit(true);
+                }
                 else
                 {
                     $this->response['offerName'] = $offerName;
@@ -261,11 +266,6 @@ class mainConversation extends conversation
                     $this->say('название объявления: '.$offerName);
                     $this->askDescription();
                 }
-            }
-            else if (mb_strtolower($answer->getText()) == 'назад')
-            {
-                $this->bot->deleteMessage($answer);
-                $this->exit(true);
             }
             else
             {
@@ -301,6 +301,7 @@ class mainConversation extends conversation
                     $this->response['description'] = $answer->getText();
                     $this->bot->deletePreviousMessage($answer);
                     $this->bot->deleteMessage($answer);
+                    $this->say('добавлено описание');
                     $this->askPrice ();
                 }
             }
@@ -355,15 +356,15 @@ class mainConversation extends conversation
         if($ismore)
             $text = "Загрузите следующее фото";
         else
-            $text = "Прикрепите фотографию (пока работает загрузка только по одной) 
-                    Если фото нет, нажмите на ссылку ниже
+            $text = "Прикрепите фотографию (пока работает загрузка только по одной). Если фото нет, нажмите на ссылку ниже             
              
-                    /noimage
+            /noimage
                     ";
         $this->askForImages($text , function ($images) {
-
+            //file_put_contents('Log_images.txt', var_export($images,true).PHP_EOL ,LOCK_EX); //для дебага
             foreach ($images as $image) {
                 $url = $image->getUrl(); // The direct url
+                file_put_contents('urls_images.txt', var_export($url,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
                 array_push ($this->imagesUrls, $url);
                 $this->isMorePhoto();
             }
@@ -378,6 +379,11 @@ class mainConversation extends conversation
                 $this->askContactInformation();
             else if (!empty($answer->getMessage()->getImages()))
                 $this->isMorePhoto();
+            else if (mb_strtolower($answer->getText()) == 'назад')
+            {
+                $this->bot->deleteMessage($answer);
+                $this->exit(true);
+            }
             else
             {
                 $this->say('и все же..');

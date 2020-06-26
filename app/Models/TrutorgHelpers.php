@@ -13,7 +13,7 @@ class TrutorgHelpers
     {
         if (strlen($addName)>$length) {return 0;}
         else
-        return $addName = preg_replace ('/[^\p{L}\p{N}\.\,]/u', '_', $addName);
+        return $addName = preg_replace ('/[^\p{L}\p{N}\.\, -]/u', '_', $addName);
     }
 
     public function validateDigits($price, $length)
