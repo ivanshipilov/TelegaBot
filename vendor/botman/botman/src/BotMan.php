@@ -604,6 +604,25 @@ class BotMan
      * @throws BadMethodCallException
      */
 
+    public function deletePreviousMessage($message)
+    {
+        if ($_SERVER['SERVER_ADDR'] == '127.0.0.1')
+        {
+            return 0;
+        }
+        else
+        {
+            $payload = $message->getMessage()->getPayload();
+            $apiParameters =
+                [
+                    'chat_id' => $payload['chat']['id'],
+                    'message_id' => $payload['message_id']-1
+                ];
+
+            $this->sendRequest('deleteMessage', $apiParameters);
+        }
+    }
+
     public function deleteMessage($message)
     {
         if ($_SERVER['SERVER_ADDR'] == '127.0.0.1')

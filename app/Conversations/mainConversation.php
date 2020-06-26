@@ -77,7 +77,6 @@ class mainConversation extends conversation
 
 
     private function hello () {
-        file_put_contents('LOG_serv.txt', var_export(self::$localServer,true).PHP_EOL ,LOCK_EX); //для дебага
         if (array_key_exists('new_user',$this->userInformation))
         {
             $question = Question::create("Привет! хотите разместить объявление, или что-то купить?");
@@ -100,48 +99,73 @@ class mainConversation extends conversation
             if ($answer->getValue() == 1) {
                 $this->parentCategoryChoose();
             } else if ($answer->getValue() == 2) {
-                $this->say('trutorg.com');
+                $this->say('Все объявления здесь: trutorg.com');
+                $this->bot->deleteMessage($answer);
+                $this->bot->typesAndWaits(1.5);
+                $this->hello ();
             } else if ($answer->getValue() == 3) {
+                $this->bot->deleteMessage($answer);
                 $this->watchActiveAdds();
+            } else {
+                $this->bot->deletePreviousMessage($answer);
+                $this->bot->deleteMessage($answer);
+                $this->hello ();
             }
-            $this->bot->deleteMessage($answer);
         });
     }
 
     private function watchActiveAdds()
     {
-        //$this->say('Ваши активные объявления:');
         $db = new TrutorgDB();
-        $bot = $this->bot;
         $adds = $db->getUserOffers($this->userInformation['user_id']);
-        $question = Question::create("Ваши активные объявления:");
-        foreach ( $adds as $id => $title )
+        if ($adds->isNotEmpty())
         {
-            //$this->say($title.', ссылка: https://trutorg.com/index.php?page=item&id='.$id);
-            $question->addButtons([Button::create($title)->value($id),]);
-        }
-        $this->ask($question, function (Answer $answer) use ($db){
-            if ($answer == '') {
-                $this->hello();
-            } else {
-                $addId = $answer->getValue();
-                $question1 = Question::create('Как поступим с этим объявлением?');
-                $question1->addButtons([
-                    Button::create('закрыть')->value(1),
-                    Button::create('перейти к нему на сайте')->value(2),
-                    //Button::create('посмотреть что продают соседи')->value(3),
-                ]);
-                $this->ask($question1, function (Answer $answer) use ($addId, $db){
-                    if ($answer->getValue() == 1) {
-                        $db->deactivateAdd($addId); //деактивировать объявление
-                    } else if ($answer->getValue() == 2) {
-                        $this->say('ссылка: https://trutorg.com/index.php?page=item&id='.$addId);
-                    }
-                    $this->bot->deleteMessage($answer);
-                });
+            $question = Question::create("Ваши активные объявления:");
+            file_put_contents('Log.txt', var_export($question,true).PHP_EOL ,LOCK_EX); //для дебага
+            foreach ($adds as $id => $title) {
+                $question->addButtons([Button::create($title)->value($id),]);
             }
-            $this->bot->deleteMessage($answer);
-        });
+            $this->ask($question, function (Answer $answer) use ($db, $adds) {
+                if (key_exists($answer->getValue(),$adds->toArray())){
+                    $addId = $answer->getValue();
+                    $question1 = Question::create('Как поступим с этим объявлением?');
+                    $question1->addButtons([
+                        Button::create('закрыть')->value(1),
+                        Button::create('перейти к нему на сайте')->value(2),
+                        //Button::create('редактировать')->value(3),
+                    ]);
+                    $this->ask($question1, function (Answer $answer) use ($addId, $db) {
+                        if ($answer->getValue() == 1) {
+                            $db->deactivateAdd($addId); //деактивировать объявление
+                            $this->say('объявление закрыто');
+                            $this->bot->typesAndWaits(1.5);
+                            $this->hello ();
+                        } else if ($answer->getValue() == 2) {
+                            $this->say('ссылка: https://trutorg.com/index.php?page=item&id=' . $addId);
+                            $this->bot->typesAndWaits(3);
+                            $this->hello ();
+                        } else
+                            {
+                                $this->bot->deletePreviousMessage($answer);
+                                $this->bot->deleteMessage($answer);
+                                $this->hello();
+                            }
+                    });
+                }
+                else
+                    {
+                        $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->hello();
+                    }
+            });
+        }
+        else
+        {
+            $this->say('у вас нет активных объявлений');
+            $this->bot->typesAndWaits(1.5);
+            $this->hello ();
+        }
     }
 
     private function parentCategoryChoose ()
@@ -161,6 +185,7 @@ class mainConversation extends conversation
                 $this->response['parentCatId'] = $answer->getText();
                 $this->childCategoryChoose($answer->getText());
             }
+            $this->bot->deleteMessage($answer);
         });
     }
 
@@ -181,6 +206,7 @@ class mainConversation extends conversation
                 $this->response['childCatId'] = $answer->getText();
                 $this->askOfferName();
             }
+            $this->bot->deleteMessage($answer);
         });
     }
 
@@ -194,6 +220,7 @@ class mainConversation extends conversation
                 $this->askDescription();
             }
             else {$this->askOfferName();}
+            $this->bot->deleteMessage($answer);
         });
     }
 
@@ -207,6 +234,7 @@ class mainConversation extends conversation
                 $this->askPrice ();
             }
             else {$this->askDescription();}
+            $this->bot->deleteMessage($answer);
         });
     }
 
@@ -220,6 +248,7 @@ class mainConversation extends conversation
                 $this->askPhoto ();
             }
             else {$this->askPrice();}
+            $this->bot->deleteMessage($answer);
         });
     }
 
@@ -243,10 +272,10 @@ class mainConversation extends conversation
 
 
         }, function(Answer $answer) {
-            file_put_contents('answer.txt', var_export($answer,true).PHP_EOL ,LOCK_EX); //для дебага
+            //file_put_contents('answer.txt', var_export($answer,true).PHP_EOL ,LOCK_EX); //для дебага
             $selectedText = $answer->getText();
             $selectedValue = $answer->getValue();
-            //$this->deleteLastMessage($answer);
+            $this->bot->deleteMessage($answer);
             if( $selectedText == "/noimage")
                 $this->askContactInformation();
             else if (!empty($answer->getMessage()->getImages()))
@@ -279,7 +308,7 @@ class mainConversation extends conversation
             // Detect if button was clicked:
             $selectedText = $answer->getText();
             $selectedValue = $answer->getValue();
-            //$this->deleteLastMessage($answer);
+            $this->bot->deleteMessage($answer);
             $this->bot->typesAndWaits(0.5);
 
             if($selectedValue == 100)
@@ -319,6 +348,7 @@ class mainConversation extends conversation
                         $this->response = array_merge($this->response, $contactInformation['contact']);
                         $this->askName();
                     }
+                    $this->bot->deleteMessage($answer);
                 },
                     [
                         'reply_markup' => json_encode
@@ -349,6 +379,7 @@ class mainConversation extends conversation
                         $this->response = array_merge($this->response, $location['location']);
                         $this->askName();
                     }
+                    $this->bot->deleteMessage($answer);
                 },
                     [
                         'reply_markup' => json_encode
@@ -377,7 +408,7 @@ class mainConversation extends conversation
                     }
                     //file_put_contents('logPHONE.txt', var_export($contactInformation['contact'],true).PHP_EOL ,LOCK_EX); //для дебага
 
-                    $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
+                    $this->ask('Использовать ваше текущее местоположение в объявлении? (нажмите кнопку ниже, получение геолокации может занять несколько секунд, пожалуйста ничего не нажимайте в это время', function (Answer $answer) use ($bot) {
                         $location = $answer->getMessage()->getPayload()->toArray();
                         //file_put_contents('logLocation.txt', var_export($answer->getMessage()->getPayload(),true).PHP_EOL ,LOCK_EX); //для дебага
                         if (empty($location['location'])) {
@@ -389,6 +420,7 @@ class mainConversation extends conversation
                             $this->response = array_merge($this->response, $location['location']);
                             $this->askName();
                         }
+                        $this->bot->deleteMessage($answer);
                     },
                         [
                             'reply_markup' => json_encode
@@ -402,7 +434,7 @@ class mainConversation extends conversation
                                 'resize_keyboard' => false
                             ])
                         ]);
-
+                    $this->bot->deleteMessage($answer);
                 },
                     [
                         'reply_markup' => json_encode
@@ -438,10 +470,13 @@ class mainConversation extends conversation
         else {
             $question = Question::create("Введите ваше имя");
             $this->ask($question, function (Answer $answer) {
-                if ($answer->getText() != '') {
-                    $this->response['first_name'] = $answer->getText();
-                    $this->askPhone();
-                }
+                if ($answer->getText() != '')
+                    {
+                        $this->response['first_name'] = $answer->getText();
+                        $this->askPhone();
+                    }
+                else {$this->askName();}
+                $this->bot->deleteMessage($answer);
             });
         }
     }
@@ -456,10 +491,13 @@ class mainConversation extends conversation
         {
             $question = Question::create("Введите номер телефона по которому с вам свяжется покупатель");
             $this->ask($question, function (Answer $answer) {
-                if ($answer->getText() != '') {
-                    $this->response['phone_number'] = $answer->getText();
-                    $this->askLocation();
-                }
+                if ($answer->getText() != '')
+                    {
+                        $this->response['phone_number'] = $answer->getText();
+                        $this->askLocation();
+                    }
+                else {$this->askPhone();}
+                $this->bot->deleteMessage($answer);
             });
         }
     }
@@ -474,10 +512,13 @@ class mainConversation extends conversation
         {
             $question = Question::create("Укажите адрес (пока тест)");
             $this->ask($question, function (Answer $answer) {
-                if ($answer->getText() != '') {
+                if ($answer->getText() != '')
+                {
                     $this->response['address'] = $answer->getText();
                     $this->checkInformation();
                 }
+                else {$this->askLocation();}
+                $this->bot->deleteMessage($answer);
             });
         }
     }
@@ -510,6 +551,7 @@ class mainConversation extends conversation
                 $this->userInformation = [];
                 $this->Preparing();
             }
+            $this->bot->deleteMessage($answer);
         });
 
     }
