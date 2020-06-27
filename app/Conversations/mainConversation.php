@@ -353,6 +353,8 @@ class mainConversation extends conversation
 
     private function askPhoto($ismore = false)
     {
+        if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
+        $path4imageUrls = $this->newDir.$imageFolder;
         if($ismore)
             $text = "Загрузите следующее фото";
         else
@@ -360,13 +362,15 @@ class mainConversation extends conversation
              
             /noimage
                     ";
-        $this->askForImages($text , function ($images) {
+        $this->askForImages($text , function ($images) use ($path4imageUrls){
             //file_put_contents('Log_images.txt', var_export($images,true).PHP_EOL ,LOCK_EX); //для дебага
             foreach ($images as $image) {
                 $url = $image->getUrl(); // The direct url
-                file_put_contents('urls_images.txt', var_export($url,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
+                file_put_contents($path4imageUrls.'urls_images.txt', var_export($url,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
                 array_push ($this->imagesUrls, $url);
-                $this->isMorePhoto();
+                $this->bot->typesAndWaits(1);
+                $this->askContactInformation();
+                //$this->isMorePhoto();
             }
 
 
@@ -378,6 +382,7 @@ class mainConversation extends conversation
             if( $selectedText == "/noimage")
                 $this->askContactInformation();
             else if (!empty($answer->getMessage()->getImages()))
+
                 $this->isMorePhoto();
             else if (mb_strtolower($answer->getText()) == 'назад')
             {
@@ -392,10 +397,6 @@ class mainConversation extends conversation
 
         });
     }
-
-
-
-
 
     private function isMorePhoto()
     {
@@ -677,24 +678,25 @@ class mainConversation extends conversation
     private function uploadPhotos($newItemId)
     {
         $db = new TrutorgDB();
-        //file_put_contents('logImageInfo.txt', var_export('imagesUrls= '.$this->imagesUrls,true).PHP_EOL ,LOCK_EX); //для дебага
         if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
-        $path4image = $this->newDir.$imageFolder.$newItemId;
+        $path4imageUrls = $this->newDir.$imageFolder;
+        $path4image = $path4imageUrls.$newItemId;
         $path4imageToDB = self::$path4imageDB.$newItemId.'/';
-        file_put_contents('logImagePathes.txt', var_export('path4image= '.$path4image.', path4imageToDB= '.$path4imageToDB,true).PHP_EOL ,LOCK_EX); //для дебага
+        $urlsFromFile = file_get_contents($path4imageUrls.'urls_images.txt');
+        file_put_contents('urls_images_fromFile.txt', $urlsFromFile.PHP_EOL ,LOCK_EX); //для дебага
+        $urlsArray = explode("\n",str_replace("'",'',trim($urlsFromFile)));
+        file_put_contents('urls_images_fromArray.txt', var_export($urlsArray,true).PHP_EOL ,LOCK_EX); //для дебага
+
+
         mkdir($path4image, 0777);
         $i=0;
-        //file_put_contents('BeforeUploadCycle.txt', var_export('path4image= '.$path4image.', path4imageToDB= '.$path4imageToDB,true).PHP_EOL ,LOCK_EX); //для дебага
-        foreach ($this->imagesUrls as $image)
+        foreach ($urlsArray as $image)
         {
             $imageId = $db->getNewItemResourceId();
-            //ниже заморочки с расширением, возможно надо будет предусмотреть разные расширения..позже
-            /*$imageExtension = stristr(substr($image, strpos($image, '/') + 1), ';', true);
-            $imageFullExtension = stristr(substr($image, strpos($image, ' ') + 1), ';', true);*/
             $imageExtension = 'jpg';
             $imageFullExtension = 'image/jpeg';
 
-//нужно будет доработать функцию - сделать js для 4 версий рисунка: id, id_original, id_preview, id_thumbnail
+            //нужно будет доработать функцию - сделать js для 4 версий рисунка: id, id_original, id_preview, id_thumbnail
             if(self::$localServer){$slash = '\\';}else{$slash='/';}
             file_put_contents($path4image.$slash.$imageId.'.'.$imageExtension, file_get_contents($image));
             file_put_contents($path4image.$slash.$imageId.'_original.'.$imageExtension, file_get_contents($image));
@@ -703,11 +705,18 @@ class mainConversation extends conversation
             $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
             ++$i;
         }
+        unlink($path4imageUrls.'urls_images.txt');
+        $this->say('фото загружены');
         $this->exit($newItemId);
+
     }
 
     private function exit($unthink = false, $newItemId = 0)
     {
+        if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
+        $path4imageUrls = $this->newDir.$imageFolder;
+        unlink($path4imageUrls.'urls_images.txt');
+
         if (!$unthink)
         {
             $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id=' . $newItemId);
