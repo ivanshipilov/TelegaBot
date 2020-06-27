@@ -367,7 +367,7 @@ class mainConversation extends conversation
             foreach ($images as $image) {
                 $url = $image->getUrl(); // The direct url
                 file_put_contents($path4imageUrls.'urls_images.txt', var_export($url,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
-                array_push ($this->imagesUrls, $url);
+                //array_push ($this->imagesUrls, $url);
                 $this->bot->typesAndWaits(1);
                 $this->askContactInformation();
                 //$this->isMorePhoto();
@@ -652,7 +652,7 @@ class mainConversation extends conversation
                 $this->sendInformationToDB($data);
             } else if ($answer->getValue() == 2) {
                 $this->response = [];
-                $this->imagesUrls = [];
+                $this->imagesUrls = []; //не актуально если получится мультиФото
                 $this->userInformation = [];
                 $this->Preparing();
             }
@@ -664,7 +664,6 @@ class mainConversation extends conversation
     private function sendInformationToDB($data)
     {
         $db = new TrutorgDB();
-        file_put_contents('logDATABeforePush.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
         if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);}
         else
         {
@@ -688,7 +687,7 @@ class mainConversation extends conversation
         file_put_contents('urls_images_fromArray.txt', var_export($urlsArray,true).PHP_EOL ,LOCK_EX); //для дебага
 
 
-        mkdir($path4image, 0777);
+        mkdir($path4image, 0777); //сделать проверку есть ли каталог
         $i=0;
         foreach ($urlsArray as $image)
         {
@@ -717,13 +716,13 @@ class mainConversation extends conversation
         $path4imageUrls = $this->newDir.$imageFolder;
         unlink($path4imageUrls.'urls_images.txt');
 
-        if (!$unthink)
+        if ($unthink)
         {
             $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id=' . $newItemId);
             $this->bot->reply($message);
         }
         $this->response = [];
-        $this->imagesUrls = [];
+        $this->imagesUrls = []; //не актульно если получится мульти фото
         $this->userInformation = [];
         $this->Preparing();
         return true;
