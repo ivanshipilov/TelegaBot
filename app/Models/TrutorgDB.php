@@ -144,8 +144,17 @@ class TrutorgDB extends Model
 
     public function getNewItemId()
     {
-        $maxIndex = DB::table(self::$tablePrefix.'_t_item')->pluck('pk_i_id')->max();
-        return $maxIndex + 1;
+        $maxItemIndexInOC_item = DB::table(self::$tablePrefix.'_t_item')->pluck('pk_i_id')->max();
+        $maxItemIndexItemHistory = DB::table('item_history')->pluck('last_item_id')->max();
+        file_put_contents('log.txt', var_export($maxItemIndexItemHistory,true).PHP_EOL ,LOCK_EX); //для дебага
+        if ($maxItemIndexInOC_item > $maxItemIndexItemHistory)
+            {
+                $maxItemId = $maxItemIndexInOC_item;
+                DB::table('item_history')->update(['last_item_id' => $maxItemId + 1]);
+            }
+        else {$maxItemId =  $maxItemIndexItemHistory;}
+
+        return $newItemId = $maxItemId + 1;
     }
 
     public function getNewItemResourceId()
@@ -223,7 +232,7 @@ class TrutorgDB extends Model
                     'user_district' => 'район',
                     'user_street' => 'улица',
                     'user_house' => 'дом',
-                    'user_index' => 'имя',
+                    //'user_index' => 'имя',
                 );
             }
             else
@@ -240,7 +249,7 @@ class TrutorgDB extends Model
                         'user_district' => 'район',
                         'user_street' => 'улица',
                         'user_house' => 'дом',
-                        'user_index' => 'имя',
+                        //'user_index' => 'имя',
                     );
                 }
         }
@@ -260,6 +269,7 @@ class TrutorgDB extends Model
                 'b_show_email' => 0,
                 's_contact_email' => 'telegaBot',
                 'b_active'=>1,
+                'dt_expiration'=>date("Y-m-d h:m:s", strtotime("+1 month")),
             ]
         );
 
@@ -318,12 +328,9 @@ class TrutorgDB extends Model
     public function putUserInformation($data, $update = false)
     {
         if ($update) {$command = 'update';}
-        else {$command = 'insert'; }
-        //$data = $this->getUserInformation($user_id,true);
-        file_put_contents('logdata.txt', var_export($data['first_name'],true).PHP_EOL ,LOCK_EX);
-
-        DB::table('messenger_users')->$command(
-            [
+        else {$command = 'insert';}
+        DB::table('messenger_users')->$command
+            ([
                 'user_id' => $data['user_id'],
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -331,15 +338,12 @@ class TrutorgDB extends Model
                 'latitude' => $data['latitude'],
                 'longitude' => $data['longitude'],
                 'id_chat' => 1,
-                'user_country' => $data['user_country'],
-                'user_city' => $data['user_city'],
-                'user_district' => $data['user_district'],
-                'user_street' => $data['user_street'],
-                'user_house' => $data['user_house'],
-                'user_index' => $data['user_index'],
-
-            ]
-        );
+                'user_country' => 'test',//$data['user_country'],
+                'user_city' => 'test',//$data['user_city'],
+                'user_district' => 'test',//$data['user_district'],
+                'user_street' => 'test',//$data['user_street'],
+                'user_house' => 'test',//$data['user_house'],
+            ]);
     }
 
 

@@ -26,6 +26,7 @@ class mainConversation extends conversation
     static $folder4imageLocalServer = '\images\\';
     static $folder4imagelServer = '/images/';
     static $path4imageDB = 'oc-content/uploads/TelegaBot/images/';
+    static $temp;
 
     public $newDir;
     public $response = [];
@@ -63,6 +64,7 @@ class mainConversation extends conversation
         else
         {$this->userInformation = $userInformation;}
 
+        //$this->myDebugFunction();
         $this->hello();
     }
 
@@ -73,6 +75,10 @@ class mainConversation extends conversation
 
     public function myDebugFunction()
     {
+        $api = getenv('TELEGRAM_TOKEN');
+        $this->say('тест ');
+        $message = json_decode(file_get_contents('php://input'));
+        file_put_contents('test.txt', var_export($message,true).PHP_EOL , LOCK_EX);
         $this->say('сделаль ');
     }
 
@@ -109,6 +115,9 @@ class mainConversation extends conversation
             } else if ($answer->getValue() == 3) {
                 $this->bot->deleteMessage($answer);
                 $this->watchActiveAdds();
+            } else if ($answer->getText() == '/debug') {
+                $this->bot->deleteMessage($answer);
+                $this->exit(true,0,true);
             } else {
                 $this->bot->deletePreviousMessage($answer);
                 $this->bot->deleteMessage($answer);
@@ -363,50 +372,47 @@ class mainConversation extends conversation
             /noimage
                     ";
         $this->askForImages($text , function ($images) use ($path4imageUrls){
-            //file_put_contents('Log_images.txt', var_export($images,true).PHP_EOL ,LOCK_EX); //для дебага
             foreach ($images as $image) {
-                $url = $image->getUrl(); // The direct url
+                $url = $image->getUrl();
                 file_put_contents($path4imageUrls.'urls_images.txt', var_export($url,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
                 //array_push ($this->imagesUrls, $url);
                 $this->bot->typesAndWaits(1);
-                $this->askContactInformation();
-                //$this->isMorePhoto();
+                $this->isMorePhoto();
             }
 
 
         }, function(Answer $answer) {
-            //file_put_contents('answer.txt', var_export($answer,true).PHP_EOL ,LOCK_EX); //для дебага
+
             $selectedText = $answer->getText();
             $selectedValue = $answer->getValue();
             $this->bot->deleteMessage($answer);
             if( $selectedText == "/noimage")
                 $this->askContactInformation();
-            else if (!empty($answer->getMessage()->getImages()))
-
-                $this->isMorePhoto();
             else if (mb_strtolower($answer->getText()) == 'назад')
             {
                 $this->bot->deleteMessage($answer);
                 $this->exit(true);
+            }
+            else if (!empty($answer->getMessage()->getImages()))
+            {
+                //походу сюда не заходит никак.. проверить
+                $this->isMorePhoto();
             }
             else
             {
                 $this->say('и все же..');
                 $this->askPhoto();
             }
-
         });
     }
 
     private function isMorePhoto()
     {
-
         $question = Question::create("Хотите загрузить еще фото?")
             ->callbackId('isMorePhoto');
         $question->addButtons([
             Button::create("yes")->value("100"),
             Button::create("no")->value("255"),
-
         ]);
 
         $this->ask($question, function (Answer $answer) {
@@ -415,7 +421,6 @@ class mainConversation extends conversation
             $selectedValue = $answer->getValue();
             $this->bot->deleteMessage($answer);
             $this->bot->typesAndWaits(0.5);
-
             if($selectedValue == 100)
                 $this->askPhoto(true);
             else if ($selectedValue == 255)
@@ -444,16 +449,16 @@ class mainConversation extends conversation
                 $bot = $this->bot;
                 $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм', function (Answer $answer) use ($bot) {
                     $contactInformation = $answer->getMessage()->getPayload()->toArray();
-                    file_put_contents('logContact.txt', var_export($answer,true).PHP_EOL ,LOCK_EX); //для дебага
                     if (empty($contactInformation['contact']['phone_number'])) {
                         $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                        $this->bot->deletePreviousMessage($answer);
                         $this->askName();
                     } else {
                         $bot->reply('номер телефона получен!');
                         $this->response = array_merge($this->response, $contactInformation['contact']);
+                        $this->bot->deletePreviousMessage($answer);
                         $this->askName();
                     }
-                    $this->bot->deleteMessage($answer);
                 },
                     [
                         'reply_markup' => json_encode
@@ -477,14 +482,15 @@ class mainConversation extends conversation
                     $contactInformation = $answer->getMessage()->getPayload()->toArray();
                     if (empty($location['location'])) {
                         $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                        $this->bot->deletePreviousMessage($answer);
                         $this->askName();
                     } else {
                         $bot->reply('геолокация получена!');
                         $location = $answer->getMessage()->getPayload()->toArray();
                         $this->response = array_merge($this->response, $location['location']);
+                        $this->bot->deletePreviousMessage($answer);
                         $this->askName();
                     }
-                    $this->bot->deleteMessage($answer);
                 },
                     [
                         'reply_markup' => json_encode
@@ -507,25 +513,26 @@ class mainConversation extends conversation
                     $contactInformation = $answer->getMessage()->getPayload()->toArray();
                     if (empty($contactInformation['contact']['phone_number'])) {
                         $this->say('Ок! Вы сможете ввести необходимые данные вручную');
+                        $this->bot->deletePreviousMessage($answer);
                     } else {
                         $bot->reply('номер телефона получен!');
                         $this->response = array_merge($this->response, $contactInformation['contact']);
+                        $this->bot->deletePreviousMessage($answer);
                     }
-                    //file_put_contents('logPHONE.txt', var_export($contactInformation['contact'],true).PHP_EOL ,LOCK_EX); //для дебага
 
                     $this->ask('Использовать ваше текущее местоположение в объявлении? (нажмите кнопку ниже, получение геолокации может занять несколько секунд, пожалуйста ничего не нажимайте в это время', function (Answer $answer) use ($bot) {
                         $location = $answer->getMessage()->getPayload()->toArray();
-                        //file_put_contents('logLocation.txt', var_export($answer->getMessage()->getPayload(),true).PHP_EOL ,LOCK_EX); //для дебага
                         if (empty($location['location'])) {
                             $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                            $this->bot->deletePreviousMessage($answer);
                             $this->askName();
                         } else {
                             $bot->reply('геолокация получена!');
                             $location = $answer->getMessage()->getPayload()->toArray();
                             $this->response = array_merge($this->response, $location['location']);
+                            $this->bot->deletePreviousMessage($answer);
                             $this->askName();
                         }
-                        $this->bot->deleteMessage($answer);
                     },
                         [
                             'reply_markup' => json_encode
@@ -539,7 +546,7 @@ class mainConversation extends conversation
                                 'resize_keyboard' => false
                             ])
                         ]);
-                    $this->bot->deleteMessage($answer);
+                    $this->bot->deletePreviousMessage($answer);
                 },
                     [
                         'reply_markup' => json_encode
@@ -664,6 +671,7 @@ class mainConversation extends conversation
     private function sendInformationToDB($data)
     {
         $db = new TrutorgDB();
+
         if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);}
         else
         {
@@ -682,13 +690,15 @@ class mainConversation extends conversation
         $path4image = $path4imageUrls.$newItemId;
         $path4imageToDB = self::$path4imageDB.$newItemId.'/';
         $urlsFromFile = file_get_contents($path4imageUrls.'urls_images.txt');
-        file_put_contents('urls_images_fromFile.txt', $urlsFromFile.PHP_EOL ,LOCK_EX); //для дебага
-        $urlsArray = explode("\n",str_replace("'",'',trim($urlsFromFile)));
-        file_put_contents('urls_images_fromArray.txt', var_export($urlsArray,true).PHP_EOL ,LOCK_EX); //для дебага
+        //file_put_contents('urls_images_fromFile.txt', $urlsFromFile.PHP_EOL ,LOCK_EX); //для дебага
+        $urlsArray = array_unique(explode("\n",str_replace("'",'',trim($urlsFromFile))));
 
+        if(!is_dir($path4image))
+        {
+            mkdir($path4image, 0777);
+        }
 
-        mkdir($path4image, 0777); //сделать проверку есть ли каталог
-        $i=0;
+        //$i=0;
         foreach ($urlsArray as $image)
         {
             $imageId = $db->getNewItemResourceId();
@@ -702,21 +712,19 @@ class mainConversation extends conversation
             file_put_contents($path4image.$slash.$imageId.'_preview.'.$imageExtension, file_get_contents($image));
             file_put_contents($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension, file_get_contents($image));
             $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
-            ++$i;
+            //++$i;
         }
         unlink($path4imageUrls.'urls_images.txt');
         $this->say('фото загружены');
-        $this->exit($newItemId);
+        $this->exit(false, $newItemId);
 
     }
 
-    private function exit($unthink = false, $newItemId = 0)
+    private function exit($unthink = false, $newItemId = 0, $debug = false)
     {
+        if ($debug){return true;}
         if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
-        $path4imageUrls = $this->newDir.$imageFolder;
-        unlink($path4imageUrls.'urls_images.txt');
-
-        if ($unthink)
+        if (!$unthink)
         {
             $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id=' . $newItemId);
             $this->bot->reply($message);

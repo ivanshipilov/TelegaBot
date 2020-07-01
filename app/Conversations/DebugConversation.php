@@ -62,8 +62,8 @@ class DebugConversation extends conversation
         }
         else
         {$this->userInformation = $userInformation;}
-        //$this->myDebugFunction();
-        $this->hello();
+        $this->myDebugFunction();
+        //$this->hello();
     }
 
     public function run ()
@@ -73,11 +73,9 @@ class DebugConversation extends conversation
 
     public function myDebugFunction()
     {
-        $urlsFromFile = file_get_contents('urls_images_fromFile.txt');
-        $urlsArray = explode("\n",str_replace("'",'',trim($urlsFromFile)));
-        //file_put_contents('urls_images_fromArray.txt', var_export($urlsArray,true).PHP_EOL ,LOCK_EX); //для дебага
-
-        file_put_contents('test.jpg', file_get_contents($urlsArray[0]));
+        $this->say('тест ');
+        $message = json_decode(file_get_contents('php://input'));
+        file_put_contents('test.txt', var_export($message,true).PHP_EOL , LOCK_EX);
         $this->say('сделаль ');
     }
 
