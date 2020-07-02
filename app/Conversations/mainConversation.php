@@ -63,7 +63,6 @@ class mainConversation extends conversation
         }
         else
         {$this->userInformation = $userInformation;}
-
         //$this->myDebugFunction();
         $this->hello();
     }
@@ -111,7 +110,7 @@ class mainConversation extends conversation
                 $this->say('Все объявления здесь: trutorg.com');
                 $this->bot->deleteMessage($answer);
                 $this->bot->typesAndWaits(1.5);
-                $this->hello ();
+                $this->exit(true);
             } else if ($answer->getValue() == 3) {
                 $this->bot->deleteMessage($answer);
                 $this->watchActiveAdds();
@@ -121,7 +120,7 @@ class mainConversation extends conversation
             } else {
                 $this->bot->deletePreviousMessage($answer);
                 $this->bot->deleteMessage($answer);
-                $this->hello ();
+                $this->exit(true);
             }
         });
     }
@@ -167,7 +166,7 @@ class mainConversation extends conversation
                     {
                         $this->bot->deletePreviousMessage($answer);
                         $this->bot->deleteMessage($answer);
-                        $this->hello();
+                        $this->exit(true);
                     }
             });
         }
@@ -175,7 +174,7 @@ class mainConversation extends conversation
         {
             $this->say('у вас нет активных объявлений');
             $this->bot->typesAndWaits(1.5);
-            $this->hello ();
+            $this->exit(true);
         }
     }
 
@@ -196,15 +195,14 @@ class mainConversation extends conversation
                 $this->say('выбрана категория: '.$parentCategories[$answer->getText()]);
                 $this->childCategoryChoose($answer->getText());
             }
-            else if (mb_strtolower($answer->getText()) == 'назад')
+            else if (mb_strtolower($answer->getText()) == '/start')
             {
-
                 $this->bot->deleteMessage($answer);
                 $this->exit(true);
             }
             else
             {
-                $this->say('выберите категорию, нажав на одну из кнопок, если же вы передумали публиковать объявление напишите "назад"');
+                $this->say('выберите категорию, нажав на одну из кнопок, если же вы передумали публиковать объявление напишите "/start"');
                 $this->bot->deletePreviousMessage($answer);
                 $this->bot->deleteMessage($answer);
                 $this->parentCategoryChoose ();
@@ -230,14 +228,14 @@ class mainConversation extends conversation
                 $this->say('выбрана подкатегория: '.$childCategories[$answer->getText()]);
                 $this->askOfferName();
             }
-            else if (mb_strtolower($answer->getText()) == 'назад')
+            else if (mb_strtolower($answer->getText()) == '/start')
             {
                 $this->bot->deleteMessage($answer);
                 $this->exit(true);
             }
             else
             {
-                $this->say('выберите категорию, нажав на одну из кнопок, если же вы передумали публиковать объявление напишите "назад"');
+                $this->say('выберите категорию, нажав на одну из кнопок, если же вы передумали публиковать объявление напишите "/start"');
                 $this->bot->deletePreviousMessage($answer);
                 $this->bot->deleteMessage($answer);
                 $this->childCategoryChoose();
@@ -262,7 +260,7 @@ class mainConversation extends conversation
                     $this->bot->deleteMessage($answer);
                     $this->askOfferName();
                 }
-                else if (mb_strtolower($answer->getText()) == 'назад')
+                else if (mb_strtolower($answer->getText()) == '/start')
                 {
                     $this->bot->deleteMessage($answer);
                     $this->exit(true);
@@ -300,7 +298,7 @@ class mainConversation extends conversation
                     $this->bot->deleteMessage($answer);
                     $this->askDescription();
                 }
-                else if (mb_strtolower($answer->getText()) == 'назад')
+                else if (mb_strtolower($answer->getText()) == '/start')
                 {
                     $this->bot->deleteMessage($answer);
                     $this->exit(true);
@@ -338,7 +336,7 @@ class mainConversation extends conversation
                     $this->bot->deleteMessage($answer);
                     $this->askPrice();
                 }
-                else if (mb_strtolower($answer->getText()) == 'назад')
+                else if (mb_strtolower($answer->getText()) == '/start')
                 {
                     $this->bot->deleteMessage($answer);
                     $this->exit(true);
@@ -348,7 +346,7 @@ class mainConversation extends conversation
                     $this->response['price'] = $price;
                     $this->bot->deletePreviousMessage($answer);
                     $this->bot->deleteMessage($answer);
-                    $this->say('стоимость: '.$price.' рублей');
+                    $this->say('стоимость: '.$price.' руб.');
                     $this->askPhoto();
                 }
             }
@@ -388,7 +386,7 @@ class mainConversation extends conversation
             $this->bot->deleteMessage($answer);
             if( $selectedText == "/noimage")
                 $this->askContactInformation();
-            else if (mb_strtolower($answer->getText()) == 'назад')
+            else if (mb_strtolower($answer->getText()) == '/start')
             {
                 $this->bot->deleteMessage($answer);
                 $this->exit(true);
@@ -447,11 +445,13 @@ class mainConversation extends conversation
             if (key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation))
             {
                 $bot = $this->bot;
-                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм', function (Answer $answer) use ($bot) {
+                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм (либо ответьте "нет")', function (Answer $answer) use ($bot) {
                     $contactInformation = $answer->getMessage()->getPayload()->toArray();
                     if (empty($contactInformation['contact']['phone_number'])) {
-                        $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                        $this->say('Ок! Вы сможете ввести необходимые контактные данные вручную позже');
                         $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->bot->typesAndWaits(1);
                         $this->askName();
                     } else {
                         $bot->reply('номер телефона получен!');
@@ -481,8 +481,10 @@ class mainConversation extends conversation
                 $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
                     $contactInformation = $answer->getMessage()->getPayload()->toArray();
                     if (empty($location['location'])) {
-                        $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                        $this->say('Ок! Вы сможете ввести адрес вручную позже');
                         $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->bot->typesAndWaits(1);
                         $this->askName();
                     } else {
                         $bot->reply('геолокация получена!');
@@ -509,11 +511,13 @@ class mainConversation extends conversation
             //если не хватает и номера и геолокации
             if (key_exists(1, $noUserInformation) or ((key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation)) && (key_exists('address', $noUserInformation)))) {  // сюда надо раздельно для контакта и дальше для адреса}
                 $bot = $this->bot;
-                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм', function (Answer $answer) use ($bot) {
+                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм (либо ответьте "нет")', function (Answer $answer) use ($bot) {
                     $contactInformation = $answer->getMessage()->getPayload()->toArray();
                     if (empty($contactInformation['contact']['phone_number'])) {
-                        $this->say('Ок! Вы сможете ввести необходимые данные вручную');
+                        $this->say('Ок! Вы сможете ввести необходимые контактные данные вручную позже');
                         $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->bot->typesAndWaits(1);
                     } else {
                         $bot->reply('номер телефона получен!');
                         $this->response = array_merge($this->response, $contactInformation['contact']);
@@ -523,8 +527,10 @@ class mainConversation extends conversation
                     $this->ask('Использовать ваше текущее местоположение в объявлении? (нажмите кнопку ниже, получение геолокации может занять несколько секунд, пожалуйста ничего не нажимайте в это время', function (Answer $answer) use ($bot) {
                         $location = $answer->getMessage()->getPayload()->toArray();
                         if (empty($location['location'])) {
-                            $this->say('Ок! Вы можете ввести необходимые данные вручную');
+                            $this->say('Ок! Вы сможете ввести адрес вручную позже');
                             $this->bot->deletePreviousMessage($answer);
+                            $this->bot->deleteMessage($answer);
+                            $this->bot->typesAndWaits(1);
                             $this->askName();
                         } else {
                             $bot->reply('геолокация получена!');
@@ -580,12 +586,33 @@ class mainConversation extends conversation
             $this->askPhone();
         }
         else {
+
             $question = Question::create("Введите ваше имя");
             $this->ask($question, function (Answer $answer) {
                 if ($answer->getText() != '')
                     {
-                        $this->response['first_name'] = $answer->getText();
-                        $this->askPhone();
+                        $hlp = new TrutorgHelpers();
+                        $name = $hlp->validateText($answer->getText(),30);
+                        if (mb_strtolower($answer->getText()) == '/start')
+                        {
+                            $this->bot->deleteMessage($answer);
+                            $this->exit(true);
+                        }
+                        else if ($name === 0)
+                        {
+                            $this->say('Имя должно быть менее 30 символов и без использования спец-символов');
+                            $this->bot->deletePreviousMessage($answer);
+                            $this->bot->deleteMessage($answer);
+                            $this->askName();
+                        }
+                        else
+                        {
+                            $this->response['first_name'] = $answer->getText();
+                            $this->bot->deletePreviousMessage($answer);
+                            $this->bot->deleteMessage($answer);
+                            $this->say('имя: '.$name);
+                            $this->askPhone();
+                        }
                     }
                 else {$this->askName();}
                 $this->bot->deleteMessage($answer);
@@ -601,12 +628,32 @@ class mainConversation extends conversation
         }
         else
         {
-            $question = Question::create("Введите номер телефона по которому с вам свяжется покупатель");
+            $question = Question::create("Введите номер телефона по которому с вам свяжется покупатель (в формате 79*********)");
             $this->ask($question, function (Answer $answer) {
                 if ($answer->getText() != '')
                     {
-                        $this->response['phone_number'] = $answer->getText();
-                        $this->askLocation();
+                        $hlp = new TrutorgHelpers();
+                        $phone = $hlp->validateDigits($answer->getText(),11);
+                        if (mb_strtolower($answer->getText()) == '/start')
+                        {
+                            $this->bot->deleteMessage($answer);
+                            $this->exit(true);
+                        }
+                        else if ($phone === 0)
+                        {
+                            $this->say('Номер телефона должен состоять только из цифр и не более 11 символов');
+                            $this->bot->deletePreviousMessage($answer);
+                            $this->bot->deleteMessage($answer);
+                            $this->askPhone();
+                        }
+                        else
+                        {
+                            $this->response['phone_number'] = $answer->getText();
+                            $this->bot->deletePreviousMessage($answer);
+                            $this->bot->deleteMessage($answer);
+                            $this->say('номер телефона: '.$phone);
+                            $this->askLocation();
+                        }
                     }
                 else {$this->askPhone();}
                 $this->bot->deleteMessage($answer);
@@ -622,14 +669,34 @@ class mainConversation extends conversation
         }
         else
         {
-            $question = Question::create("Укажите адрес (пока тест)");
+            $question = Question::create("Укажите адрес в формате: Москва, ул.Производственная, 12к2 (обязательно через запятую)");
             $this->ask($question, function (Answer $answer) {
                 if ($answer->getText() != '')
                 {
-                    $this->response['address'] = $answer->getText();
-                    $this->checkInformation();
+                    $hlp = new TrutorgHelpers();
+                    $address = $hlp->validateAddress($answer->getText(), 255);
+                    if (mb_strtolower($answer->getText()) == '/start')
+                    {
+                        $this->bot->deleteMessage($answer);
+                        $this->exit(true);
+                    }
+                    else if ($address === 0)
+                    {
+                        $this->say('Некорректно введен адрес');
+                        $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->askLocation();
+                    }
+                    else
+                    {
+                        $this->response = array_merge($this->response, $address);
+                        $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->say('адрес введен');
+                        $this->checkInformation();
+                    }
                 }
-                else {$this->askLocation();}
+                else {$this->checkInformation();}
                 $this->bot->deleteMessage($answer);
             });
         }
@@ -637,16 +704,17 @@ class mainConversation extends conversation
 
     private function checkInformation()
     {
+        file_put_contents('LogCheckInfo.txt', var_export($this->response,true).PHP_EOL ,LOCK_EX); //для дебага
         $db = new TrutorgDB();
         $this->response['newItem_Id'] = $db->getNewItemId();
         $data = array_merge($this->response, $this->userInformation);
 
         $this->say('проверьте пожалуйста информацию: 
-                            Название:'.$data['offerName'].'
-                            Цена:'.$data['price'].'
-                            Имя:'.$data['first_name'].'
-                            Телефон:'.$data['phone_number']
-
+        Название:'.$data['offerName'].'
+        Цена:'.$data['price'].'
+        Имя:'.$data['first_name'].'
+        Телефон:'.$data['phone_number'].'
+        Адрес:'.$data['user_city'].' ,'.$data['user_street'].' ,'.$data['user_house']
         );
         {$question = Question::create('Все корректно?');}
         $question->addButtons([
@@ -671,12 +739,13 @@ class mainConversation extends conversation
     private function sendInformationToDB($data)
     {
         $db = new TrutorgDB();
-
-        if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);}
-        else
+        if (key_exists('user_id', $data))
         {
-            $db->putUserInformation($data,true);
+            if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);}
+            else {$db->putUserInformation($data,true);}
         }
+        else {$db->putUserInformation($data);}
+
         $db->PutToTheTable($data);
         $this->uploadPhotos($data['newItem_Id']);
 
@@ -715,7 +784,6 @@ class mainConversation extends conversation
             //++$i;
         }
         unlink($path4imageUrls.'urls_images.txt');
-        $this->say('фото загружены');
         $this->exit(false, $newItemId);
 
     }
@@ -728,6 +796,7 @@ class mainConversation extends conversation
         {
             $message = OutgoingMessage::create('объявление добавлено! https://trutorg.com/index.php?page=item&id=' . $newItemId);
             $this->bot->reply($message);
+            $this->bot->typesAndWaits(1.5);
         }
         $this->response = [];
         $this->imagesUrls = []; //не актульно если получится мульти фото

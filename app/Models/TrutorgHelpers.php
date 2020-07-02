@@ -16,10 +16,28 @@ class TrutorgHelpers
         return $addName = preg_replace ('/[^\p{L}\p{N}\.\, -]/u', '_', $addName);
     }
 
-    public function validateDigits($price, $length)
+    public function validateDigits($digits, $length)
     {
-        if ((!ctype_digit($price)) or (strlen($price)>$length)) {return 0;}
-        else return $price;
+        if ((!ctype_digit($digits)) or (strlen($digits)>$length)) {return 0;}
+        else return $digits;
+    }
+
+    public function validateAddress($address, $length)
+    {
+        //Укажите адрес в формате: Москва, ул.Производственная, 12к2]
+        if ((strlen($address)>$length) or (substr_count($address, ',') <2)) {return 0;}
+        else
+        {
+            $address = trim(preg_replace ('/[^\p{L}\p{N}\.\, -]/u', '_', $address));
+            $addressArray = explode(",",$address);
+            return array
+            (
+                'user_city' => $addressArray[0],
+                'user_district' => '-',
+                'user_street' => $addressArray[1],
+                'user_house' => $addressArray[2],
+            );
+        }
     }
 
 }

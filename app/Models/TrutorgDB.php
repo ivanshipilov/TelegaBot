@@ -273,29 +273,56 @@ class TrutorgDB extends Model
             ]
         );
 
-        DB::table(self::$tablePrefix.'_t_item_description')->insert(
-            [
-                'fk_i_item_id' => $data['newItem_Id'],
-                'fk_c_locale_code' => 'ru_RU',
-                's_title' => $data['offerName'],
-                's_description' => $data['description'],
-                'telega_user_id' => $data['user_id'],
-            ]
-        );
-
-        DB::table(self::$tablePrefix.'_t_item_location')->insert(
-            [
-                'fk_i_item_id' => $data['newItem_Id'],
-                'fk_c_country_code' => 'RU',
-                's_country' => 'Россия',
-                's_address' => 'тестовый адрес айди '.$data['newItem_Id'],
-                'fk_i_region_id' => '781870',
-                's_region' => 'Москва',
-                'fk_i_city_id' => '408071',
-                's_city' => 'Москва',
-                's_city_area' => 'солнцево',
-            ]
-        );
+        if (!key_exists('user_id',$data))
+        {
+            DB::table(self::$tablePrefix.'_t_item_location')->insert(
+                [
+                    'fk_i_item_id' => $data['newItem_Id'],
+                    'fk_c_country_code' => 'RU',
+                    's_country' => 'Россия',
+                    's_address' => $data['user_city'].', '.$data['user_street'].', '.$data['user_house'],
+                    'fk_i_region_id' => '781870',
+                    's_region' => 'Москва',
+                    'fk_i_city_id' => '408071',
+                    's_city' => $data['user_city'],
+                    's_city_area' => $data['user_street'],
+                ]
+            );
+            DB::table(self::$tablePrefix.'_t_item_description')->insert(
+                [
+                    'fk_i_item_id' => $data['newItem_Id'],
+                    'fk_c_locale_code' => 'ru_RU',
+                    's_title' => $data['offerName'],
+                    's_description' => $data['description'],
+                    'telega_user_id' => 0,
+                ]
+            );
+        }
+        else
+        {
+            DB::table(self::$tablePrefix.'_t_item_location')->insert(
+                [
+                    'fk_i_item_id' => $data['newItem_Id'],
+                    'fk_c_country_code' => 'RU',
+                    's_country' => 'Россия',
+                    's_address' => 'тестовый адрес айди '.$data['newItem_Id'],
+                    'fk_i_region_id' => '781870',
+                    's_region' => 'Москва',
+                    'fk_i_city_id' => '408071',
+                    's_city' => 'Москва',
+                    's_city_area' => 'солнцево',
+                ]
+            );
+            DB::table(self::$tablePrefix.'_t_item_description')->insert(
+                [
+                    'fk_i_item_id' => $data['newItem_Id'],
+                    'fk_c_locale_code' => 'ru_RU',
+                    's_title' => $data['offerName'],
+                    's_description' => $data['description'],
+                    'telega_user_id' => $data['user_id'],
+                ]
+            );
+        }
 
         DB::table(self::$tablePrefix.'_t_item_stats')->insert(
             [
@@ -329,6 +356,22 @@ class TrutorgDB extends Model
     {
         if ($update) {$command = 'update';}
         else {$command = 'insert';}
+        if (!key_exists('user_id',$data))
+        {
+            //"анонимный" юзер
+            DB::table('messenger_users')->$command
+            ([
+                'user_id' => 0,
+                'first_name' => $data['first_name'],
+                'last_name' => 'anonim',
+                'phone_number' => $data['phone_number'],
+                'user_country' => 'Россия',
+                'user_city' => $data['user_city'],
+                'user_street' => $data['user_street'],
+                'user_house' => $data['user_house'],
+            ]);
+        }
+        else
         DB::table('messenger_users')->$command
             ([
                 'user_id' => $data['user_id'],
