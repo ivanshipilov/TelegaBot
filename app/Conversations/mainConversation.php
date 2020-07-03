@@ -689,6 +689,8 @@ class mainConversation extends conversation
                     }
                     else
                     {
+                        $address['latitude'] ='';
+                        $address['longitude'] ='';
                         $this->response = array_merge($this->response, $address);
                         $this->bot->deletePreviousMessage($answer);
                         $this->bot->deleteMessage($answer);
@@ -704,17 +706,17 @@ class mainConversation extends conversation
 
     private function checkInformation()
     {
-        file_put_contents('LogCheckInfo.txt', var_export($this->response,true).PHP_EOL ,LOCK_EX); //для дебага
         $db = new TrutorgDB();
         $this->response['newItem_Id'] = $db->getNewItemId();
         $data = array_merge($this->response, $this->userInformation);
+        file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
 
         $this->say('проверьте пожалуйста информацию: 
         Название:'.$data['offerName'].'
         Цена:'.$data['price'].'
         Имя:'.$data['first_name'].'
-        Телефон:'.$data['phone_number'].'
-        Адрес:'.$data['user_city'].' ,'.$data['user_street'].' ,'.$data['user_house']
+        Телефон:'.$data['phone_number']/*.'
+        Адрес:'.$data['user_city'].' ,'.$data['user_street'].' ,'.$data['user_house']*/  //включить после того как сделаю парсер гугл-api
         );
         {$question = Question::create('Все корректно?');}
         $question->addButtons([
@@ -753,21 +755,24 @@ class mainConversation extends conversation
 
     private function uploadPhotos($newItemId)
     {
-        $db = new TrutorgDB();
         if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
-        $path4imageUrls = $this->newDir.$imageFolder;
-        $path4image = $path4imageUrls.$newItemId;
-        $path4imageToDB = self::$path4imageDB.$newItemId.'/';
-        $urlsFromFile = file_get_contents($path4imageUrls.'urls_images.txt');
-        //file_put_contents('urls_images_fromFile.txt', $urlsFromFile.PHP_EOL ,LOCK_EX); //для дебага
-        $urlsArray = array_unique(explode("\n",str_replace("'",'',trim($urlsFromFile))));
+        $path4imageUrls = $this->newDir.$imageFolder; //передать
+        $path4imageToDB = self::$path4imageDB.$newItemId.'/'; //передать
+        /*$path4image = $path4imageUrls.$newItemId; //туда
+        $urlsFromFile = file_get_contents($path4imageUrls.'urls_images.txt');//туда
+        $urlsArray = array_unique(explode("\n",str_replace("'",'',trim($urlsFromFile)))); //туда
+        $db = new TrutorgDB();*/
+        $hlp = new TrutorgHelpers();
+        $hlp->uploadImages($path4imageUrls, $path4imageToDB, $newItemId, self::$localServer);
 
-        if(!is_dir($path4image))
+
+        //file_put_contents('urls_images_fromFile.txt', $urlsFromFile.PHP_EOL ,LOCK_EX); //для дебага
+
+        /*if(!is_dir($path4image))
         {
             mkdir($path4image, 0777);
         }
 
-        //$i=0;
         foreach ($urlsArray as $image)
         {
             $imageId = $db->getNewItemResourceId();
@@ -782,7 +787,7 @@ class mainConversation extends conversation
             file_put_contents($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension, file_get_contents($image));
             $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
             //++$i;
-        }
+        }*/
         unlink($path4imageUrls.'urls_images.txt');
         $this->exit(false, $newItemId);
 

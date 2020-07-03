@@ -146,7 +146,6 @@ class TrutorgDB extends Model
     {
         $maxItemIndexInOC_item = DB::table(self::$tablePrefix.'_t_item')->pluck('pk_i_id')->max();
         $maxItemIndexItemHistory = DB::table('item_history')->pluck('last_item_id')->max();
-        file_put_contents('log.txt', var_export($maxItemIndexItemHistory,true).PHP_EOL ,LOCK_EX); //для дебага
         if ($maxItemIndexInOC_item > $maxItemIndexItemHistory)
             {
                 $maxItemId = $maxItemIndexInOC_item;

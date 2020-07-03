@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Intervention\Image\ImageManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -37,6 +38,32 @@ class TrutorgHelpers
                 'user_street' => $addressArray[1],
                 'user_house' => $addressArray[2],
             );
+        }
+    }
+
+    public function uploadImages($path4imageUrls, $path4imageToDB, $newItemId, $localServer)
+    {
+        $path4image = $path4imageUrls.$newItemId;
+        $urlsFromFile = file_get_contents($path4imageUrls.'urls_images.txt');
+        $urlsArray = array_unique(explode("\n",str_replace("'",'',trim($urlsFromFile))));
+        if(!is_dir($path4image)) {mkdir($path4image, 0777);}
+        $db = new TrutorgDB();
+        $imageManager = new ImageManager();
+
+        foreach ($urlsArray as $image)
+        {
+            $imageId = $db->getNewItemResourceId();
+            $imageExtension = 'jpg';
+            $imageFullExtension = 'image/jpeg';
+
+            if($localServer){$slash = '\\';}else{$slash='/';}
+
+            //$imageManager->make($image)->save($path4image.$slash.$imageId.'_original.'.$imageExtension);
+            //$imageManager->make($image)->crop(640,480)->save($path4image.$slash.$imageId.'.'.$imageExtension);
+            $imageManager->make($image)->save($path4image.$slash.$imageId.'.'.$imageExtension); //основная картинка в полном размере
+            $imageManager->make($image)->fit(480,340)->save($path4image.$slash.$imageId.'_preview.'.$imageExtension);
+            $imageManager->make($image)->fit(240,200)->save($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension);
+            $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
         }
     }
 
