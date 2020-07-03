@@ -30,20 +30,7 @@ class googleApi extends Model
             'user_index' => $address['results'][0]['address_components'][7]['long_name'],
         );
     }
-    /*public function tst()
-    {
-        $address = $this->testResult;
-
-        return array
-        (
-            'user_country' => $address['results'][0]['address_components'][6]['long_name'],
-            'user_city' => $address['results'][0]['address_components'][5]['long_name'],
-            'user_district' => $address['results'][0]['address_components'][4]['long_name'],
-            'user_street' => $address['results'][0]['address_components'][5]['long_name'],
-            'user_house' => $address['results'][0]['address_components'][0]['long_name'],
-            'user_index' => $address['results'][0]['address_components'][7]['long_name'],
-        );
-    }
+    /* тестовый массив по запросу в гугл-апи
 
     public $testResult = array (
         'plus_code' =>

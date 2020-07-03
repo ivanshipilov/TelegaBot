@@ -435,14 +435,12 @@ class mainConversation extends conversation
         if (!key_exists('new_user',$userInformation))
         {
             $noUserInformation = $db->getUserAbsentInformation($userInformation['user_id']);
-            file_put_contents('LogaskContactInformation.txt', var_export($noUserInformation,true).PHP_EOL ,LOCK_EX); //для дебага
         }
         else {$noUserInformation[1]='контактов, адреса';};
-        //if (!empty($noUserInformation) && key_exists(1,$noUserInformation))
+        //if (!empty($noUserInformation) && key_exists(1,$noUserInformation)) //надо протестировать, нужно ли второе условие
         if (!empty($noUserInformation))
-        {
-            $this->say('для быстрой подачи объявлений не хватает следующих данных: ' . implode(",", $noUserInformation));
-        }
+        {$this->say('для быстрой подачи объявлений не хватает следующих данных: ' . implode(",", $noUserInformation));}
+
 
         //Случай 1: если это работа с сервера и не все данные есть
         if ((self::$localServer == false) && (!empty($noUserInformation))) {
@@ -484,7 +482,7 @@ class mainConversation extends conversation
             {
                 $bot = $this->bot;
                 $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
-                    $contactInformation = $answer->getMessage()->getPayload()->toArray();
+                    $location = $answer->getMessage()->getPayload()->toArray();
                     if (empty($location['location'])) {
                         $this->say('Ок! Вы сможете ввести адрес вручную позже');
                         $this->bot->deletePreviousMessage($answer);
@@ -582,6 +580,38 @@ class mainConversation extends conversation
             $this->checkInformation();
         }
     }
+    private  function changeLocation()
+        {
+            $bot = $this->bot;
+            $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
+                $location = $answer->getMessage()->getPayload()->toArray();
+                if (empty($location['location'])) {
+                    $this->say('Ок! Вы сможете ввести адрес вручную позже');
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->bot->deleteMessage($answer);
+                    $this->bot->typesAndWaits(1);
+                    $this->askName();
+                } else {
+                    $bot->reply('геолокация получена!');
+                    $location = $answer->getMessage()->getPayload()->toArray();
+                    $this->response = array_merge($this->response, $location['location']);
+                    $this->bot->deletePreviousMessage($answer);
+                    $this->askName();
+                }
+            },
+                [
+                    'reply_markup' => json_encode
+                    ([
+                        'keyboard' =>
+                            [[[
+                                'text' => 'Отправить геолокацию',
+                                'request_location' => true,
+                            ]]],
+                        'one_time_keyboard' => true,
+                        'resize_keyboard' => false
+                    ])
+                ]);
+        }
 
 
     private function askName()
@@ -591,7 +621,7 @@ class mainConversation extends conversation
             $this->askPhone();
         }
         else {
-            $this->response['user_id'] = 0;  // проверить все, что отталкивается от юзер айди
+            $this->response['user_id'] = 0;
             $question = Question::create("Введите ваше имя");
             $this->ask($question, function (Answer $answer) {
                 if ($answer->getText() != '')
@@ -718,8 +748,9 @@ class mainConversation extends conversation
 
         if ((!empty($this->response['latitude'])) and ((array_key_exists('new_user',$this->userInformation)))) {$address = $google->getAddress($this->response);}
         else {$address = [];}
+
         $data = array_merge($this->response, $this->userInformation, $address);
-        file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
+        //file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
 
         $this->say('проверьте пожалуйста информацию: 
         Название:'.$data['offerName'].'
@@ -731,19 +762,25 @@ class mainConversation extends conversation
         {$question = Question::create('Все корректно?');}
         $question->addButtons([
             Button::create('Да, разместить объявление')->value(1),
-            Button::create('Нет, давай заново')->value(2),
+            Button::create('Поменять адрес')->value(2),
+            Button::create('Нет, давай заново')->value(3),
         ]);
 
         $this->ask($question, function (Answer $answer) use ($data) {
             if ($answer->getValue() == 1) {
+                $this->bot->deleteMessage($answer);
                 $this->sendInformationToDB($data);
             } else if ($answer->getValue() == 2) {
-                $this->response = [];
-                $this->imagesUrls = []; //не актуально если получится мультиФото
-                $this->userInformation = [];
-                $this->Preparing();
+                $this->bot->deleteMessage($answer);
+                if (array_key_exists('new_user',$this->userInformation))
+                    {unset($this->response['user_city'],$this->response['user_street'],$this->response['user_house']);}
+                else
+                    {unset($this->userInformation['user_city'],$this->userInformation['user_street'],$this->userInformation['user_house']);}
+                $this->changeLocation();
+            } else if ($answer->getValue() == 3) {
+                $this->bot->deleteMessage($answer);
+                $this->exit(true);
             }
-            $this->bot->deleteMessage($answer);
         });
 
     }
@@ -761,39 +798,11 @@ class mainConversation extends conversation
     private function uploadPhotos($newItemId)
     {
         if (self::$localServer){$imageFolder = self::$folder4imageLocalServer;}else{$imageFolder = self::$folder4imagelServer;}
-        $path4imageUrls = $this->newDir.$imageFolder; //передать
-        $path4imageToDB = self::$path4imageDB.$newItemId.'/'; //передать
-        /*$path4image = $path4imageUrls.$newItemId; //туда
-        $urlsFromFile = file_get_contents($path4imageUrls.'urls_images.txt');//туда
-        $urlsArray = array_unique(explode("\n",str_replace("'",'',trim($urlsFromFile)))); //туда
-        $db = new TrutorgDB();*/
+        $path4imageUrls = $this->newDir.$imageFolder;
+        $path4imageToDB = self::$path4imageDB.$newItemId.'/';
         $hlp = new TrutorgHelpers();
         $hlp->uploadImages($path4imageUrls, $path4imageToDB, $newItemId, self::$localServer);
-
-
-        //file_put_contents('urls_images_fromFile.txt', $urlsFromFile.PHP_EOL ,LOCK_EX); //для дебага
-
-        /*if(!is_dir($path4image))
-        {
-            mkdir($path4image, 0777);
-        }
-
-        foreach ($urlsArray as $image)
-        {
-            $imageId = $db->getNewItemResourceId();
-            $imageExtension = 'jpg';
-            $imageFullExtension = 'image/jpeg';
-
-            //нужно будет доработать функцию - сделать js для 4 версий рисунка: id, id_original, id_preview, id_thumbnail
-            if(self::$localServer){$slash = '\\';}else{$slash='/';}
-            file_put_contents($path4image.$slash.$imageId.'.'.$imageExtension, file_get_contents($image));
-            file_put_contents($path4image.$slash.$imageId.'_original.'.$imageExtension, file_get_contents($image));
-            file_put_contents($path4image.$slash.$imageId.'_preview.'.$imageExtension, file_get_contents($image));
-            file_put_contents($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension, file_get_contents($image));
-            $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
-            //++$i;
-        }*/
-        unlink($path4imageUrls.'urls_images.txt');
+        unlink($path4imageUrls.'urls_images.txt'); //удаляется файл-костыль, в который писались url
         $this->exit(false, $newItemId);
 
     }
@@ -809,7 +818,7 @@ class mainConversation extends conversation
             $this->bot->typesAndWaits(1.5);
         }
         $this->response = [];
-        $this->imagesUrls = []; //не актульно если получится мульти фото
+        //$this->imagesUrls = []; //не актульно если получится мульти фото
         $this->userInformation = [];
         $this->Preparing();
         return true;
