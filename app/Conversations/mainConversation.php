@@ -53,7 +53,7 @@ class mainConversation extends conversation
         }
 
         $db=new TrutorgDB();
-        if (self::$localServer) {$user_id=3;}
+        if (self::$localServer) {$user_id=0;}
         else {$user_id=$this->bot->getUser()->getId();}
 
         $userInformation = $db->getUserInformation($user_id);
@@ -432,9 +432,14 @@ class mainConversation extends conversation
     {
         $db=new TrutorgDB();
         $userInformation = $this->userInformation;
-        if (!key_exists('new_user',$userInformation)){$noUserInformation = $db->getUserAbsentInformation($userInformation['user_id']);}
+        if (!key_exists('new_user',$userInformation))
+        {
+            $noUserInformation = $db->getUserAbsentInformation($userInformation['user_id']);
+            file_put_contents('LogaskContactInformation.txt', var_export($noUserInformation,true).PHP_EOL ,LOCK_EX); //для дебага
+        }
         else {$noUserInformation[1]='контактов, адреса';};
-        if (!empty($noUserInformation) && key_exists(1,$noUserInformation))
+        //if (!empty($noUserInformation) && key_exists(1,$noUserInformation))
+        if (!empty($noUserInformation))
         {
             $this->say('для быстрой подачи объявлений не хватает следующих данных: ' . implode(",", $noUserInformation));
         }
@@ -586,7 +591,7 @@ class mainConversation extends conversation
             $this->askPhone();
         }
         else {
-
+            $this->response['user_id'] = 0;  // проверить все, что отталкивается от юзер айди
             $question = Question::create("Введите ваше имя");
             $this->ask($question, function (Answer $answer) {
                 if ($answer->getText() != '')
@@ -706,17 +711,22 @@ class mainConversation extends conversation
 
     private function checkInformation()
     {
+        file_put_contents('LogCheckInfo1', var_export($this->userInformation,true).PHP_EOL ,LOCK_EX); //для дебага
         $db = new TrutorgDB();
+        $google = new googleApi();
         $this->response['newItem_Id'] = $db->getNewItemId();
-        $data = array_merge($this->response, $this->userInformation);
+
+        if ((!empty($this->response['latitude'])) and ((array_key_exists('new_user',$this->userInformation)))) {$address = $google->getAddress($this->response);}
+        else {$address = [];}
+        $data = array_merge($this->response, $this->userInformation, $address);
         file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
 
         $this->say('проверьте пожалуйста информацию: 
         Название:'.$data['offerName'].'
         Цена:'.$data['price'].'
         Имя:'.$data['first_name'].'
-        Телефон:'.$data['phone_number']/*.'
-        Адрес:'.$data['user_city'].' ,'.$data['user_street'].' ,'.$data['user_house']*/  //включить после того как сделаю парсер гугл-api
+        Телефон:'.$data['phone_number'].'
+        Адрес:'.$data['user_city'].' ,'.$data['user_street'].' ,'.$data['user_house']
         );
         {$question = Question::create('Все корректно?');}
         $question->addButtons([
@@ -741,13 +751,8 @@ class mainConversation extends conversation
     private function sendInformationToDB($data)
     {
         $db = new TrutorgDB();
-        if (key_exists('user_id', $data))
-        {
-            if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);}
-            else {$db->putUserInformation($data,true);}
-        }
-        else {$db->putUserInformation($data);}
-
+         if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);} //если пользователь новый - добавляется, если старый - обновляется
+         else {$db->putUserInformation($data,true);}
         $db->PutToTheTable($data);
         $this->uploadPhotos($data['newItem_Id']);
 

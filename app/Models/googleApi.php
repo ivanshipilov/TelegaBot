@@ -14,27 +14,36 @@ class googleApi extends Model
         $this->apiKey = getenv('GOOGLE_API_KEY');
     }
 
-    public function getAddress($latitude, $longitude)
+    public function getAddress($data)
     {
-        $address = file_get_contents('https://maps.googleapis.com/maps/api/geocode/json?latlng='.$latitude.','.$longitude.'&language=ru&key='.$this->apiKey);
-        return json_decode($address, true);
-
+        $latitude = $data['latitude'];
+        $longitude = $data['longitude'];
+        $addressJson = file_get_contents('https://maps.googleapis.com/maps/api/geocode/json?latlng='.$latitude.','.$longitude.'&language=ru&key='.$this->apiKey);
+        $address = json_decode($addressJson, true);
+        return array
+        (
+            'user_country' => $address['results'][0]['address_components'][6]['long_name'],
+            'user_city' => $address['results'][0]['address_components'][5]['long_name'],
+            'user_district' => $address['results'][0]['address_components'][4]['long_name'],
+            'user_street' => $address['results'][0]['address_components'][1]['short_name'],
+            'user_house' => $address['results'][0]['address_components'][0]['long_name'],
+            'user_index' => $address['results'][0]['address_components'][7]['long_name'],
+        );
     }
-    public function tst()
+    /*public function tst()
     {
         $address = $this->testResult;
 
         return array
         (
-            'country' => $address['results'][0]['address_components'][6]['long_name'],
-            'city' => $address['results'][0]['address_components'][5]['long_name'],
-            'district' => $address['results'][0]['address_components'][4]['long_name'],
-            'street' => $address['results'][0]['address_components'][5]['long_name'],
-            'house' => $address['results'][0]['address_components'][0]['long_name'],
-            'index' => $address['results'][0]['address_components'][7]['long_name'],
+            'user_country' => $address['results'][0]['address_components'][6]['long_name'],
+            'user_city' => $address['results'][0]['address_components'][5]['long_name'],
+            'user_district' => $address['results'][0]['address_components'][4]['long_name'],
+            'user_street' => $address['results'][0]['address_components'][5]['long_name'],
+            'user_house' => $address['results'][0]['address_components'][0]['long_name'],
+            'user_index' => $address['results'][0]['address_components'][7]['long_name'],
         );
     }
-
 
     public $testResult = array (
         'plus_code' =>
@@ -1017,5 +1026,5 @@ class googleApi extends Model
                     ),
             ),
         'status' => 'OK',
-    );
+    );*/
 }
