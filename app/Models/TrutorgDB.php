@@ -282,6 +282,8 @@ class TrutorgDB extends Model
                 's_region' => $data['user_city'],
                 'fk_i_city_id' => '408071',   //тут надо будет получать и oc таблицы айдишники регионов и пихать сюда
                 's_city' => $data['user_city'],
+                'd_coord_lat' => $data['latitude'],
+                'd_coord_long' => $data['longitude']
                 //'s_city_area' => '', //надо писать функцию для получения района
             ]
         );

@@ -385,7 +385,7 @@ class mainConversation extends conversation
             $selectedValue = $answer->getValue();
             $this->bot->deleteMessage($answer);
             if( $selectedText == "/noimage")
-                $this->askContactInformation();
+                $this->checkUserInformation();
             else if (mb_strtolower($answer->getText()) == '/start')
             {
                 $this->bot->deleteMessage($answer);
@@ -422,171 +422,81 @@ class mainConversation extends conversation
             if($selectedValue == 100)
                 $this->askPhoto(true);
             else if ($selectedValue == 255)
-                $this->askContactInformation();
+                $this->checkUserInformation();
             else
                 $this->isMorePhoto();
         }  );
     }
 
-    private function askContactInformation()
+    private function checkUserInformation()
     {
         $db=new TrutorgDB();
         $userInformation = $this->userInformation;
         if (!key_exists('new_user',$userInformation))
-        {
+            {
             $noUserInformation = $db->getUserAbsentInformation($userInformation['user_id']);
-        }
+            }
         else {$noUserInformation[1]='контактов, адреса';};
         //if (!empty($noUserInformation) && key_exists(1,$noUserInformation)) //надо протестировать, нужно ли второе условие
+
         if (!empty($noUserInformation))
-        {$this->say('для быстрой подачи объявлений не хватает следующих данных: ' . implode(",", $noUserInformation));}
-
-
-        //Случай 1: если это работа с сервера и не все данные есть
-        if ((self::$localServer == false) && (!empty($noUserInformation))) {
-            // если не хватает имени или номера
-            if (key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation))
             {
-                $bot = $this->bot;
-                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм (либо ответьте "нет")', function (Answer $answer) use ($bot) {
-                    $contactInformation = $answer->getMessage()->getPayload()->toArray();
-                    if (empty($contactInformation['contact']['phone_number'])) {
-                        $this->say('Ок! Вы сможете ввести необходимые контактные данные вручную позже');
-                        $this->bot->deletePreviousMessage($answer);
-                        $this->bot->deleteMessage($answer);
-                        $this->bot->typesAndWaits(1);
-                        $this->askName();
-                    } else {
-                        $bot->reply('номер телефона получен!');
-                        $this->response = array_merge($this->response, $contactInformation['contact']);
-                        $this->bot->deletePreviousMessage($answer);
-                        $this->askName();
-                    }
-                },
-                    [
-                        'reply_markup' => json_encode
-                        ([
-                            'keyboard' =>
-                                [[[
-                                    'text' => 'Указать номер телефона',
-                                    'request_contact' => true,
-                                ]]],
-                            'one_time_keyboard' => true,
-                            'resize_keyboard' => false
-                        ])
-                    ]);
+            $this->say('для быстрой подачи объявлений не хватает следующих данных: ' . implode(",", $noUserInformation));
+            $this->askUserInformation($noUserInformation);
             }
-
-            // если не хватает адреса
-            else if (key_exists('address', $noUserInformation))
-            {
-                $bot = $this->bot;
-                $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
-                    $location = $answer->getMessage()->getPayload()->toArray();
-                    if (empty($location['location'])) {
-                        $this->say('Ок! Вы сможете ввести адрес вручную позже');
-                        $this->bot->deletePreviousMessage($answer);
-                        $this->bot->deleteMessage($answer);
-                        $this->bot->typesAndWaits(1);
-                        $this->askName();
-                    } else {
-                        $bot->reply('геолокация получена!');
-                        $location = $answer->getMessage()->getPayload()->toArray();
-                        $this->response = array_merge($this->response, $location['location']);
-                        $this->bot->deletePreviousMessage($answer);
-                        $this->askName();
-                    }
-                },
-                    [
-                        'reply_markup' => json_encode
-                        ([
-                            'keyboard' =>
-                                [[[
-                                    'text' => 'Отправить геолокацию',
-                                    'request_location' => true,
-                                ]]],
-                            'one_time_keyboard' => true,
-                            'resize_keyboard' => false
-                        ])
-                    ]);
-            }
-
-            //если не хватает и номера и геолокации
-            if (key_exists(1, $noUserInformation) or ((key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation)) && (key_exists('address', $noUserInformation)))) {  // сюда надо раздельно для контакта и дальше для адреса}
-                $bot = $this->bot;
-                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм (либо ответьте "нет")', function (Answer $answer) use ($bot) {
-                    $contactInformation = $answer->getMessage()->getPayload()->toArray();
-                    if (empty($contactInformation['contact']['phone_number'])) {
-                        $this->say('Ок! Вы сможете ввести необходимые контактные данные вручную позже');
-                        $this->bot->deletePreviousMessage($answer);
-                        $this->bot->deleteMessage($answer);
-                        $this->bot->typesAndWaits(1);
-                    } else {
-                        $bot->reply('номер телефона получен!');
-                        $this->response = array_merge($this->response, $contactInformation['contact']);
-                        $this->bot->deletePreviousMessage($answer);
-                    }
-
-                    $this->ask('Использовать ваше текущее местоположение в объявлении? (нажмите кнопку ниже, получение геолокации может занять несколько секунд, пожалуйста ничего не нажимайте в это время', function (Answer $answer) use ($bot) {
-                        $location = $answer->getMessage()->getPayload()->toArray();
-                        if (empty($location['location'])) {
-                            $this->say('Ок! Вы сможете ввести адрес вручную позже');
-                            $this->bot->deletePreviousMessage($answer);
-                            $this->bot->deleteMessage($answer);
-                            $this->bot->typesAndWaits(1);
-                            $this->askName();
-                        } else {
-                            $bot->reply('геолокация получена!');
-                            $location = $answer->getMessage()->getPayload()->toArray();
-                            $this->response = array_merge($this->response, $location['location']);
-                            $this->bot->deletePreviousMessage($answer);
-                            $this->askName();
-                        }
-                    },
-                        [
-                            'reply_markup' => json_encode
-                            ([
-                                'keyboard' =>
-                                    [[[
-                                        'text' => 'Отправить геолокацию',
-                                        'request_location' => true,
-                                    ]]],
-                                'one_time_keyboard' => true,
-                                'resize_keyboard' => false
-                            ])
-                        ]);
-                    $this->bot->deletePreviousMessage($answer);
-                },
-                    [
-                        'reply_markup' => json_encode
-                        ([
-                            'keyboard' =>
-                                [[[
-                                    'text' => 'Указать номер телефона',
-                                    'request_contact' => true,
-                                ]]],
-                            'one_time_keyboard' => true,
-                            'resize_keyboard' => false
-                        ])
-                    ]);
-            }
-        }
-
-        //Случай 2: если это тест с локалки и не все данные есть идем к ручному заполнению
-        else if ((self::$localServer == true) && (!empty($noUserInformation))) {
-            $this->askName();
-        } //Случай 3: если все даные есть
-        else if (empty($noUserInformation)) {
-            $this->checkInformation();
-        }
+        else {$this->checkAddInformation();}
     }
-    private  function changeLocation()
+
+    private function askUserInformation($noUserInformation)
+    {
+        if (self::$localServer == false)
+        {
+            if (key_exists('first_name', $noUserInformation) or key_exists('phone_number', $noUserInformation) or in_array('контактов, адреса', $noUserInformation))
+            {
+                $bot = $this->bot;
+                $this->ask('для упрощения заполнения вы можете одним нажатием отправить номер телефона и ваше имя, указанные в телеграмм (либо ответьте "нет")', function (Answer $answer) use ($bot, $noUserInformation) {
+                    $contactInformation = $answer->getMessage()->getPayload()->toArray();
+                    if (empty($contactInformation['contact']['phone_number'])) {
+                        $this->say('Ок! Вы сможете ввести необходимые контактные данные вручную позже');
+                        $this->bot->deletePreviousMessage($answer);
+                        $this->bot->deleteMessage($answer);
+                        $this->bot->typesAndWaits(1);
+                        $this->askUserLocation($noUserInformation);
+                    } else {
+                        $bot->reply('номер телефона получен!');
+                        $this->response = array_merge($this->response, $contactInformation['contact']);
+                        $this->bot->deletePreviousMessage($answer);
+                        $this->askUserLocation($noUserInformation);
+                    }
+                },
+                    [
+                        'reply_markup' => json_encode
+                        ([
+                            'keyboard' =>
+                                [[[
+                                    'text' => 'Указать номер телефона',
+                                    'request_contact' => true,
+                                ]]],
+                            'one_time_keyboard' => true,
+                            'resize_keyboard' => false
+                        ])
+                    ]);
+            }
+            else {$this->askUserLocation($noUserInformation);}
+        }
+        else if (self::$localServer == true)
+        {$this->askName();}
+    }
+
+    private function askUserLocation($noUserInformation)
+    {
+        if (key_exists('address', $noUserInformation) or in_array('контактов, адреса', $noUserInformation))
         {
             $bot = $this->bot;
-            $this->ask('Использовать ваше текущее местоположение в объявлении?', function (Answer $answer) use ($bot) {
+            $this->ask('Использовать ваше текущее местоположение в объявлении? Нажмите "отправить геолокацию" ниже, подождите несколько секунд. Либо можете указать адрес вручную, тогда ответьте "нет"', function (Answer $answer) use ($bot) {
                 $location = $answer->getMessage()->getPayload()->toArray();
                 if (empty($location['location'])) {
-                    $this->say('Ок! Вы сможете ввести адрес вручную позже');
+                    $this->say('Ок! Вы сможете ввести адрес вручную');
                     $this->bot->deletePreviousMessage($answer);
                     $this->bot->deleteMessage($answer);
                     $this->bot->typesAndWaits(1);
@@ -612,7 +522,8 @@ class mainConversation extends conversation
                     ])
                 ]);
         }
-
+        else {$this->checkAddInformation();}
+    }
 
     private function askName()
     {
@@ -700,7 +611,7 @@ class mainConversation extends conversation
     {
         if ((array_key_exists('latitude',$this->userInformation)) or (array_key_exists('latitude',$this->response)))
         {
-            $this->checkInformation();
+            $this->checkAddInformation();
         }
         else
         {
@@ -730,27 +641,27 @@ class mainConversation extends conversation
                         $this->bot->deletePreviousMessage($answer);
                         $this->bot->deleteMessage($answer);
                         $this->say('адрес введен');
-                        $this->checkInformation();
+                        $this->checkAddInformation();
                     }
                 }
-                else {$this->checkInformation();}
+                else {$this->checkAddInformation();}
                 $this->bot->deleteMessage($answer);
             });
         }
     }
 
-    private function checkInformation()
+    private function checkAddInformation()
     {
-        file_put_contents('LogCheckInfo1', var_export($this->userInformation,true).PHP_EOL ,LOCK_EX); //для дебага
+        file_put_contents('LogCheckInfo2', var_export($this->userInformation,true).PHP_EOL ,LOCK_EX); //для дебага
         $db = new TrutorgDB();
         $google = new googleApi();
         $this->response['newItem_Id'] = $db->getNewItemId();
 
-        if ((!empty($this->response['latitude'])) and ((array_key_exists('new_user',$this->userInformation)))) {$address = $google->getAddress($this->response);}
+        if (key_exists('latitude',$this->response)){$address = $google->getAddress($this->response);}
         else {$address = [];}
 
         $data = array_merge($this->response, $this->userInformation, $address);
-        //file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
+        file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
 
         $this->say('проверьте пожалуйста информацию: 
         Название:'.$data['offerName'].'
@@ -772,11 +683,16 @@ class mainConversation extends conversation
                 $this->sendInformationToDB($data);
             } else if ($answer->getValue() == 2) {
                 $this->bot->deleteMessage($answer);
-                if (array_key_exists('new_user',$this->userInformation))
-                    {unset($this->response['user_city'],$this->response['user_street'],$this->response['user_house']);}
-                else
-                    {unset($this->userInformation['user_city'],$this->userInformation['user_street'],$this->userInformation['user_house']);}
-                $this->changeLocation();
+                $addressFields = array('user_country','user_city','user_district','user_street','user_house','user_index','latitude','longitude');
+                foreach ($addressFields as $addressField)
+                {
+                    if(array_key_exists($addressField, $this->userInformation))
+                    {unset($this->userInformation[$addressField]);}
+                    if(array_key_exists($addressField, $this->response))
+                    {unset($this->response[$addressField]);}
+                }
+                $needToChange['address'] = 'адрес';
+                $this->askUserLocation($needToChange);
             } else if ($answer->getValue() == 3) {
                 $this->bot->deleteMessage($answer);
                 $this->exit(true);
@@ -818,7 +734,6 @@ class mainConversation extends conversation
             $this->bot->typesAndWaits(1.5);
         }
         $this->response = [];
-        //$this->imagesUrls = []; //не актульно если получится мульти фото
         $this->userInformation = [];
         $this->Preparing();
         return true;

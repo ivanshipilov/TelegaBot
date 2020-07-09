@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Exception;
 use Intervention\Image\ImageManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -60,9 +61,17 @@ class TrutorgHelpers
 
             //$imageManager->make($image)->save($path4image.$slash.$imageId.'_original.'.$imageExtension);
             //$imageManager->make($image)->crop(640,480)->save($path4image.$slash.$imageId.'.'.$imageExtension);
-            $imageManager->make($image)->save($path4image.$slash.$imageId.'.'.$imageExtension); //основная картинка в полном размере
-            $imageManager->make($image)->fit(480,340)->save($path4image.$slash.$imageId.'_preview.'.$imageExtension);
-            $imageManager->make($image)->fit(240,200)->save($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension);
+
+            try
+            {
+                $imageManager->make($image)->save($path4image.$slash.$imageId.'.'.$imageExtension); //основная картинка в полном размере
+                $imageManager->make($image)->fit(480,340)->save($path4image.$slash.$imageId.'_preview.'.$imageExtension);
+                $imageManager->make($image)->fit(240,200)->save($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension);
+            }
+            catch (Exception $e)
+            {
+                file_put_contents('Log_errors.txt', var_export(date('Y-m-d h:m:s').', '.$e,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
+            }
             $db->PutPhotoToTheTable($imageId,$newItemId,$imageExtension,$imageFullExtension,$path4imageToDB);
         }
     }
