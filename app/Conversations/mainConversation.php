@@ -655,14 +655,12 @@ class mainConversation extends conversation
         file_put_contents('LogCheckInfo2', var_export($this->userInformation,true).PHP_EOL ,LOCK_EX); //для дебага
         $db = new TrutorgDB();
         $google = new googleApi();
-        $this->response['newItem_Id'] = $db->getNewItemId();
+        //$this->response['newItem_Id'] = $db->getNewItemId();  - надо срочно отсуюда убирать - должен определяться в последний момент при подаче объявления
 
-        if (key_exists('latitude',$this->response)){$address = $google->getAddress($this->response);}
+        if (key_exists('latitude',$this->response)&&(!empty($this->response['latitude']))){$address = $google->getAddress($this->response);}
         else {$address = [];}
 
         $data = array_merge($this->response, $this->userInformation, $address);
-        file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
-
         $this->say('проверьте пожалуйста информацию: 
         Название:'.$data['offerName'].'
         Цена:'.$data['price'].'
@@ -704,6 +702,9 @@ class mainConversation extends conversation
     private function sendInformationToDB($data)
     {
         $db = new TrutorgDB();
+        $data['newItem_Id'] = $db->getNewItemId();
+        if (!key_exists('latitude',$data)) {$data['latitude']= NULL; $data['longitude']= NULL;}
+        file_put_contents('LogData.txt', var_export($data,true).PHP_EOL ,LOCK_EX); //для дебага
          if ($db->getUserInformation($data['user_id']) == 0) {$db->putUserInformation($data);} //если пользователь новый - добавляется, если старый - обновляется
          else {$db->putUserInformation($data,true);}
         $db->PutToTheTable($data);

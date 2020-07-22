@@ -68,7 +68,7 @@ class TrutorgHelpers
                 $imageManager->make($image)->fit(480,340)->save($path4image.$slash.$imageId.'_preview.'.$imageExtension);
                 $imageManager->make($image)->fit(240,200)->save($path4image.$slash.$imageId.'_thumbnail.'.$imageExtension);
             }
-            catch (Exception $e)
+            catch (Exception $e) //не фурычит, нужно проверить
             {
                 file_put_contents('Log_errors.txt', var_export(date('Y-m-d h:m:s').', '.$e,true).PHP_EOL ,FILE_APPEND | LOCK_EX);
             }
